@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pac-Man 3D</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    canvas#gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+    }
+
+    #hud {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      color: #ffffff;
+      font-size: 13px;
+      line-height: 1.6;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 10px 14px;
+      border: 1px solid #1919a6;
+      pointer-events: none;
+    }
+
+    #hud b {
+      color: #ffd200;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud">
+    <b>PAC-MAN 3D</b><br>
+    <b>W / S</b> ou <b>&uarr; / &darr;</b>: andar<br>
+    <b>A / D</b> ou <b>&larr; / &rarr;</b>: girar<br>
+    <b>Q / E</b>: deslocar de lado<br>
+    Centro: câmera POV | Canto superior direito: vista superior
+  </div>
+
+  <!-- Three.js (necessita de internet para carregar o CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="maze.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
