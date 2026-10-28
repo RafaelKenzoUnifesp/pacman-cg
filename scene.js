@@ -21,6 +21,12 @@ class Scene {
         this.maze = new Maze(MAZE_MAP, TILE, WALL_HEIGHT);
         this.player = new Player(this.maze, PLAYER_RADIUS, MOVE_SPEED, TURN_SPEED);
 
+        // Cereja protoripo inciando do lado do player
+        this.cherry = new Cherry({
+            x: this.player.x + TILE,
+            z: this.player.z
+        });
+
         const ghostColors = [0xff3030, 0xff80c0, 0x40dfff, 0xffa040];
         this.ghosts = ghostColors.map((color, index) =>
             new Ghost(this.maze, index, color)
@@ -28,6 +34,7 @@ class Scene {
 
         this.maze.addTo(this.scene);
         this.player.addTo(this.scene);
+        this.cherry.addTo(this.scene);
         this.ghosts.forEach(ghost => ghost.addTo(this.scene));
 
         // Câmeras
@@ -86,6 +93,7 @@ class Scene {
         );
 
         this.maze.update(dt);
+        this.cherry.update(dt);
         this.ghosts.forEach(ghost => ghost.update(dt));
 
         this.povCamera.follow(
