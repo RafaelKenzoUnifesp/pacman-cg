@@ -3,9 +3,7 @@
 // --------------------------------------------------
 
 class PovCamera {
-
     constructor(eyeHeight) {
-
         this.eyeHeight = eyeHeight;
 
         // Projeção perspectiva
@@ -19,7 +17,6 @@ class PovCamera {
     }
 
     setAspect(aspect) {
-
         this.camera.aspect = aspect;
         this.camera.updateProjectionMatrix();
     }

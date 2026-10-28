@@ -13,46 +13,21 @@ class Scene {
         const MOVE_SPEED = 6;
         const TURN_SPEED = 2.4;
 
-        this.renderer =
-            new Renderer(canvas);
-
-        this.scene =
-            new THREE.Scene();
-
-        this.scene.background =
-            new THREE.Color(0x000000);
+        this.renderer = new Renderer(canvas);
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000000);
 
         // Cenário e jogador
-        this.maze =
-            new Maze(
-                MAZE_MAP,
-                TILE,
-                WALL_HEIGHT
-            );
-
-        this.player =
-            new Player(
-                this.maze,
-                PLAYER_RADIUS,
-                MOVE_SPEED,
-                TURN_SPEED
-            );
+        this.maze = new Maze(MAZE_MAP, TILE, WALL_HEIGHT);
+        this.player = new Player(this.maze, PLAYER_RADIUS, MOVE_SPEED, TURN_SPEED);
 
         this.maze.addTo(this.scene);
         this.player.addTo(this.scene);
 
         // Câmeras
-        const mazeSize =
-            Math.max(
-                this.maze.cols,
-                this.maze.rows
-            ) * TILE;
-
-        this.povCamera =
-            new PovCamera(EYE_HEIGHT);
-
-        this.topCamera =
-            new TopCamera(mazeSize);
+        const mazeSize = Math.max(this.maze.cols, this.maze.rows) * TILE;
+        this.povCamera = new PovCamera(EYE_HEIGHT);
+        this.topCamera = new TopCamera(mazeSize);
 
         this.keys = {};
 
@@ -131,7 +106,6 @@ class Scene {
     }
 
     init() {
-
         requestAnimationFrame(
             () => this.execute()
         );

@@ -5,7 +5,6 @@
 class SceneObject {
 
     constructor() {
-
         // Objeto 3D (Three.js) que representa este elemento na cena
         this.object3D =
             new THREE.Group();
@@ -15,7 +14,6 @@ class SceneObject {
     }
 
     addTo(scene) {
-
         scene.add(
             this.object3D
         );
@@ -28,11 +26,7 @@ class SceneObject {
 
 class Maze extends SceneObject {
 
-    constructor(
-        map,
-        tile,
-        wallHeight
-    ) {
+    constructor(map, tile, wallHeight) {
 
         super();
 
