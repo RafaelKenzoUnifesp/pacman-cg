@@ -39,6 +39,7 @@ class Maze extends SceneObject {
 
         this.playerSpawn = { x: 0, z: 0 };
         this.ghostSpawns = [];
+        this.dots = [];
         this.pellets = [];
 
         this.build();
@@ -184,6 +185,7 @@ class Maze extends SceneObject {
                     );
 
                     this.object3D.add(dot);
+                    this.dots.push(dot);
 
                 } else if (tileChar === "o") {
 
@@ -251,6 +253,21 @@ class Maze extends SceneObject {
             this.map[row][col];
 
         return tileChar === "#" || tileChar === "-";
+    }
+
+    // Verifica se uma posição colide com alguma bolinha do mapa
+    hasPelletAt(x, z, radius = 0.6) {
+
+        const overlaps = (pellet) => {
+            const dx = x - pellet.position.x;
+            const dz = z - pellet.position.z;
+            const pelletRadius = pellet.geometry.parameters.radius;
+            const combinedRadius = radius + pelletRadius;
+
+            return dx * dx + dz * dz < combinedRadius * combinedRadius;
+        };
+
+        return this.dots.some(overlaps) || this.pellets.some(overlaps);
     }
 
     // Verifica se um círculo (x, z) de raio r colide com alguma parede

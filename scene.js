@@ -21,11 +21,18 @@ class Scene {
         this.maze = new Maze(MAZE_MAP, TILE, WALL_HEIGHT);
         this.player = new Player(this.maze, PLAYER_RADIUS, MOVE_SPEED, TURN_SPEED);
 
-        // Cereja protoripo inciando do lado do player
-        this.cherry = new Cherry({
-            x: this.player.x + TILE,
-            z: this.player.z
-        });
+        // Mantem a cereja perto do player e evita nascer sobre uma bolinha
+        //spawn da cereja vai ser alterado posteriormente 
+        const cherrySpawnCandidates = [
+            { x: this.player.x + TILE, z: this.player.z },
+            { x: this.player.x + TILE * 0.6, z: this.player.z }
+        ];
+
+        const cherrySpawn = cherrySpawnCandidates.find(position =>
+            !this.maze.hasPelletAt(position.x, position.z)
+        );
+
+        this.cherry = new Cherry(cherrySpawn || cherrySpawnCandidates[1]);
 
         const ghostColors = [0xff3030, 0xff80c0, 0x40dfff, 0xffa040];
         this.ghosts = ghostColors.map((color, index) =>
