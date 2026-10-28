@@ -3,7 +3,6 @@
 ![Three.js](https://img.shields.io/badge/Biblioteca-Three.js%20r128-black?style=flat-square&logo=threedotjs)
 ![WebGL](https://img.shields.io/badge/Render-WebGL2-990000?style=flat-square&logo=webgl)
 ![JavaScript](https://img.shields.io/badge/Linguagem-JavaScript%20ES6-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
-![Entrega](https://img.shields.io/badge/Entrega%2002-Modelagem%203D%20%26%20Cen%C3%A1rio-blue?style=flat-square)
 
 Releitura tridimensional em primeira pessoa (POV) do clássico jogo **Pac-Man**, desenvolvida com **Three.js** e **WebGL**. O projeto faz parte da avaliação prática da disciplina de Computação Gráfica, trazendo a navegação pelo labirinto com colisão geométrica contínua e sistema de dupla projeção simultânea (visão subjetiva e minimapa superior).
 
