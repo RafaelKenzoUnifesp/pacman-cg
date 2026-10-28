@@ -43,6 +43,8 @@ pacman-cg/
 ├── transformacoes.js   # Biblioteca de conversão matricial (tile <-> mundo) e vetores
 ├── maze.js             # Matriz representativa do labirinto (MAZE_MAP)
 ├── sceneObject.js      # Hierarquia de objetos de cena (SceneObject, Maze, Player)
+├── cereja.js           # Modelo 3D da cereja (teste inicial)
+├── fantama.js          # Classe Ghost: spawn, estados e cores 
 ├── camera.js           # Configurações das câmeras (PovCamera e TopCamera)
 ├── renderer.js         # Gerenciamento de viewports e chamadas de renderização WebGL
 ├── scene.js            # Loop de animação (requestAnimationFrame) e escuta de eventos
