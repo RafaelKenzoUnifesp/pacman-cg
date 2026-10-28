@@ -21,8 +21,14 @@ class Scene {
         this.maze = new Maze(MAZE_MAP, TILE, WALL_HEIGHT);
         this.player = new Player(this.maze, PLAYER_RADIUS, MOVE_SPEED, TURN_SPEED);
 
+        const ghostColors = [0xff3030, 0xff80c0, 0x40dfff, 0xffa040];
+        this.ghosts = ghostColors.map((color, index) =>
+            new Ghost(this.maze, index, color)
+        );
+
         this.maze.addTo(this.scene);
         this.player.addTo(this.scene);
+        this.ghosts.forEach(ghost => ghost.addTo(this.scene));
 
         // Câmeras
         const mazeSize = Math.max(this.maze.cols, this.maze.rows) * TILE;
@@ -80,6 +86,7 @@ class Scene {
         );
 
         this.maze.update(dt);
+        this.ghosts.forEach(ghost => ghost.update(dt));
 
         this.povCamera.follow(
             this.player

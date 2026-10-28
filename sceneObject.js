@@ -463,3 +463,5 @@ class Player extends SceneObject {
         this.object3D.rotation.y = this.yaw;
     }
 }
+
+
