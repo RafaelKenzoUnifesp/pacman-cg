@@ -98,7 +98,16 @@ class Renderer {
             this.topSize
         );
 
+        const fogOriginal = scene.fog;
+        scene.fog = new THREE.Fog(
+            0x020206,
+            8,
+            18
+        );
+
         renderer.clear();
         renderer.render(scene, topCamera);
+
+        scene.fog = fogOriginal;
     }
 }

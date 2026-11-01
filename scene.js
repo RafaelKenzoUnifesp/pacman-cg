@@ -137,6 +137,10 @@ class Scene {
         this.povCamera.follow(
             this.player
         );
+        this.topCamera.follow(
+         this.player
+        );
+        
         // Atualiza a posição da lanterna
         this.flashlight.position.copy(
          this.povCamera.camera.position

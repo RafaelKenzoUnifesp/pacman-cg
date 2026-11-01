@@ -45,43 +45,34 @@ class PovCamera {
 class TopCamera {
 
     constructor(mazeSize) {
-
-        const fov = 50;
-
-        // Projeção perspectiva
-        this.camera =
-            new THREE.PerspectiveCamera(
-                fov,
-                1,
-                0.1,
-                500
-            );
-
-        // Distância necessária para enquadrar o labirinto inteiro
-        const distance =
-            (mazeSize / 2) /
-            Math.tan(THREE.MathUtils.degToRad(fov / 2)) *
-            1.05;
-
-        this.camera.position.set(
-            0,
-            distance,
-            0
+        this.camera = new THREE.PerspectiveCamera(
+            50,
+            1,
+            0.1,
+            100
         );
 
-        this.camera.up.set(
-            0,
-            0,
-            -1
+        this.camera.position.set(0, 14, 0);
+
+        this.camera.up.set(0, 0, -1);
+
+        this.camera.lookAt(0, 0, 0);
+
+        this.camera.layers.enable(1);
+    }
+
+    follow(player) {
+        this.camera.position.set(
+            player.x,
+            14,
+            player.z
         );
 
         this.camera.lookAt(
+            player.x,
             0,
-            0,
-            0
+            player.z
         );
-
-        // Camada 1: marcador do jogador
-        this.camera.layers.enable(1);
     }
 }
+
