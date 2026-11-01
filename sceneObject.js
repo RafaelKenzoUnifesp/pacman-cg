@@ -65,14 +65,31 @@ class Maze extends SceneObject {
                 wallGeometry
             );
 
+        const textureLoader = new THREE.TextureLoader();
+
+        const wallTexture = textureLoader.load(
+          "./assets/textures/wall_concrete.jpg"
+        );
+
+        wallTexture.colorSpace = THREE.SRGBColorSpace;
+
+        wallTexture.wrapS = THREE.RepeatWrapping;
+        wallTexture.wrapT = THREE.RepeatWrapping;
+
+        wallTexture.repeat.set(1, 1);
+
+
         const wallMaterial =
             new THREE.MeshBasicMaterial({
-                color: 0x1919a6
+                map: wallTexture,
+                color: 0x777777,
+                roughness: 0.95,
+                metalness: 0.0
             });
 
         const wallEdgeMaterial =
             new THREE.LineBasicMaterial({
-                color: 0x5aa0ff
+                color: 0x242936
             });
 
         const doorGeometry =
@@ -225,7 +242,9 @@ class Maze extends SceneObject {
                     this.rows * this.tile
                 ),
                 new THREE.MeshBasicMaterial({
-                    color: 0x0a0a14
+                    color: 0x18181d,
+                    roughness: 1.0,
+                    metalness: 0.0
                 })
             );
 

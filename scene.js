@@ -15,7 +15,38 @@ class Scene {
 
         this.renderer = new Renderer(canvas);
         this.scene = new THREE.Scene();
+        this.scene.fog = new THREE.Fog(
+            0x020206,
+            5,
+            20
+    );
         this.scene.background = new THREE.Color(0x000000);
+
+        // Iluminação ambiente fraca
+        this.ambientLight = new THREE.AmbientLight(0x263044, 0.12);
+        this.scene.add(this.ambientLight);
+
+        // Lanterna do jogador
+        this.flashlight = new THREE.SpotLight(
+         0xffe8c0,
+            35,
+            18,
+         Math.PI / 5,
+         0.45,
+        1.5
+        );
+
+        this.flashlight.castShadow = true;
+        this.flashlight.shadow.mapSize.set(1024, 1024);
+        this.flashlight.shadow.camera.near = 0.1;
+        this.flashlight.shadow.camera.far = 20;
+
+        this.flashlightTarget = new THREE.Object3D();
+
+        this.scene.add(this.flashlight);
+        this.scene.add(this.flashlightTarget);
+
+        this.flashlight.target = this.flashlightTarget;
 
         // Cenário e jogador
         this.maze = new Maze(MAZE_MAP, TILE, WALL_HEIGHT);
@@ -106,7 +137,21 @@ class Scene {
         this.povCamera.follow(
             this.player
         );
-    }
+        // Atualiza a posição da lanterna
+        this.flashlight.position.copy(
+         this.povCamera.camera.position
+        );
+
+        // Obtém a direção para a qual a câmera está olhando
+        const direction = new THREE.Vector3();
+
+        this.povCamera.camera.getWorldDirection(direction);
+
+        // Posiciona o alvo à frente do jogador
+        this.flashlightTarget.position
+         .copy(this.povCamera.camera.position)
+          .add(direction.multiplyScalar(10));
+         }
 
     draw() {
 
