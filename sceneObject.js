@@ -58,10 +58,10 @@ class Maze extends SceneObject {
 
         const ctx = canvas.getContext("2d");
 
-        ctx.fillStyle = "#0a1a3a";
+        ctx.fillStyle = "#142c66";
         ctx.fillRect(0, 0, size, size);
 
-        ctx.strokeStyle = "#12306e";
+        ctx.strokeStyle = "#234a9e";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, size / 2);
@@ -70,7 +70,7 @@ class Maze extends SceneObject {
         ctx.lineTo(size / 2, size);
         ctx.stroke();
 
-        ctx.strokeStyle = "#2f6bff";
+        ctx.strokeStyle = "#4580ff";
         ctx.lineWidth = 4;
         ctx.strokeRect(2, 2, size - 4, size - 4);
 
@@ -90,16 +90,16 @@ class Maze extends SceneObject {
 
         const ctx = canvas.getContext("2d");
 
-        // Ladrilhos xadrez escuros
-        ctx.fillStyle = "#080910";
+        // Ladrilhos xadrez com tom difuso para espalhar a luz ao redor
+        ctx.fillStyle = "#181c2e";
         ctx.fillRect(0, 0, size, size);
 
-        ctx.fillStyle = "#141728";
+        ctx.fillStyle = "#2c3350";
         ctx.fillRect(0, 0, half, half);
         ctx.fillRect(half, half, half, half);
 
         // Borda interna sutil de cada ladrilho
-        ctx.strokeStyle = "rgba(80, 100, 160, 0.12)";
+        ctx.strokeStyle = "rgba(130, 150, 210, 0.15)";
         ctx.lineWidth = 2;
         ctx.strokeRect(4, 4, half - 8, half - 8);
         ctx.strokeRect(half + 4, 4, half - 8, half - 8);
@@ -107,7 +107,7 @@ class Maze extends SceneObject {
         ctx.strokeRect(half + 4, half + 4, half - 8, half - 8);
 
         // Rejunte escuro entre os blocos
-        ctx.strokeStyle = "#040408";
+        ctx.strokeStyle = "#0c0e18";
         ctx.lineWidth = 3;
         ctx.strokeRect(0, 0, half, half);
         ctx.strokeRect(half, 0, half, half);
@@ -148,17 +148,17 @@ class Maze extends SceneObject {
         const wallMaterial =
             new THREE.MeshStandardMaterial({
                 map: wallTexture,
-                color: 0x3b6eff,
-                emissive: 0x081848,
+                color: 0x70a0ff,
+                emissive: 0x061236,
                 emissiveMap: wallTexture,
-                emissiveIntensity: 0.25,
-                roughness: 0.4,
-                metalness: 0.65
+                emissiveIntensity: 0.2,
+                roughness: 0.78,
+                metalness: 0.12
             });
 
         const wallEdgeMaterial =
             new THREE.LineBasicMaterial({
-                color: 0x0a1026
+                color: 0x4d88ff
             });
 
         const doorGeometry =
@@ -234,8 +234,6 @@ class Maze extends SceneObject {
                         this.wallHeight / 2,
                         position.z
                     );
-                    wall.castShadow = true;
-                    wall.receiveShadow = true;
 
                     const edges =
                         new THREE.LineSegments(
@@ -246,6 +244,7 @@ class Maze extends SceneObject {
                     edges.position.copy(
                         wall.position
                     );
+                    edges.layers.set(1);
 
                     this.object3D.add(wall);
                     this.object3D.add(edges);
@@ -300,10 +299,6 @@ class Maze extends SceneObject {
                     this.object3D.add(pellet);
                     this.pellets.push(pellet);
 
-                    const pelletLight = new THREE.PointLight(0xffdd66, 1.5, 6, 2);
-                    pelletLight.position.copy(pellet.position);
-                    this.object3D.add(pelletLight);
-
                 } else if (tileChar === "P") {
 
                     this.playerSpawn = position;
@@ -326,13 +321,12 @@ class Maze extends SceneObject {
                 ),
                 new THREE.MeshStandardMaterial({
                     map: this.createFloorTexture(),
-                    roughness: 0.55,
-                    metalness: 0.2
+                    roughness: 0.88,
+                    metalness: 0.05
                 })
             );
 
         floor.rotation.x = -Math.PI / 2;
-        floor.receiveShadow = true;
 
         this.object3D.add(floor);
     }

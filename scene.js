@@ -23,27 +23,23 @@ class Scene {
         this.scene.background = new THREE.Color(0x000000);
 
         // Iluminação ambiente fraca
-        this.ambientLight = new THREE.AmbientLight(0x101830, 0.06);
+        this.ambientLight = new THREE.AmbientLight(0x141e38, 0.1);
         this.scene.add(this.ambientLight);
+        this.scene.userData.ambientLight = this.ambientLight;
 
-        // Luz curta ao redor do jogador (visibilidade próxima e minimapa)
-        this.playerLight = new THREE.PointLight(0xffe0a3, 1.0, 8, 2);
+        // Luz difusa ao redor do jogador (ilumina os arredores e o minimapa)
+        this.playerLight = new THREE.PointLight(0xffe6b8, 1.8, 12, 1);
         this.scene.add(this.playerLight);
 
-        // Lanterna do jogador
+        // Lanterna do jogador com cone aberto e suave
         this.flashlight = new THREE.SpotLight(
             0xfff4dc,
-            2.8,
-            16,
-            Math.PI / 4.5,
-            0.5,
-            1.6
+            2.2,
+            18,
+            Math.PI / 3,
+            0.85,
+            1
         );
-
-        this.flashlight.castShadow = true;
-        this.flashlight.shadow.mapSize.set(1024, 1024);
-        this.flashlight.shadow.camera.near = 0.1;
-        this.flashlight.shadow.camera.far = 20;
 
         this.flashlightTarget = new THREE.Object3D();
 
@@ -69,7 +65,7 @@ class Scene {
 
         this.cherry = new Cherry(cherrySpawn || cherrySpawnCandidates[1]);
 
-        const ghostColors = [0xff3030, 0xff80c0, 0x40dfff, 0xffa040];
+        const ghostColors = [0xff0055, 0xff00ea, 0x00f7ff, 0xff7b00];
         this.ghosts = ghostColors.map((color, index) =>
             new Ghost(this.maze, index, color)
         );

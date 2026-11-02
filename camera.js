@@ -52,7 +52,7 @@ class TopCamera {
             100
         );
 
-        this.camera.position.set(0, 14, 0);
+        this.camera.position.set(0, 24, 0);
 
         this.camera.up.set(0, 0, -1);
 
@@ -64,7 +64,7 @@ class TopCamera {
     follow(player) {
         this.camera.position.set(
             player.x,
-            14,
+            24,
             player.z
         );
 
