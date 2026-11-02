@@ -468,49 +468,69 @@ class Player extends SceneObject {
         this.buildMarker();
     }
 
-    // TODO: substituir pelo modelo 3D do Pac-Man quando estiver pronto
-    // O marcador usa a camada 1, portanto só aparece na vista superior
+    // Gera a sprite 2D do Pac-Man clássico em um canvas
+    createPacmanSpriteTexture(directionAngle) {
+
+        const size = 64;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        const center = size / 2;
+        const radius = size * 0.44;
+        const mouthAngle = 0.28 * Math.PI;
+
+        const startAngle = directionAngle + mouthAngle / 2;
+        const endAngle = directionAngle + (2 * Math.PI - mouthAngle / 2);
+
+        ctx.fillStyle = "#ffe600";
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, radius, startAngle, endAngle, false);
+        ctx.closePath();
+        ctx.fill();
+
+        // Borda sutil de destaque
+        ctx.strokeStyle = "#cca300";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.encoding = THREE.sRGBEncoding;
+        return texture;
+    }
+
+    // Marcador 2D do Pac-Man exclusivo da vista superior
     buildMarker() {
 
-        const body =
-            new THREE.Mesh(
-                new THREE.SphereGeometry(
-                    1.1,
-                    20,
-                    20
-                ),
-                new THREE.MeshBasicMaterial({
-                    color: 0xffd200
-                })
-            );
+        // Texturas para as 4 direções discretas (olhando na tela: Cima, Direita, Baixo, Esquerda)
+        // No plano XZ com câmera de cima (up=(0,0,-1)):
+        //   -Z é para cima na tela -> ângulo -PI/2
+        //   +X é para a direita na tela -> ângulo 0
+        //   +Z é para baixo na tela -> ângulo +PI/2
+        //   -X é para a esquerda na tela -> ângulo PI
+        this.pacmanTextures = {
+            up: this.createPacmanSpriteTexture(-Math.PI / 2),
+            right: this.createPacmanSpriteTexture(0),
+            down: this.createPacmanSpriteTexture(Math.PI / 2),
+            left: this.createPacmanSpriteTexture(Math.PI)
+        };
 
-        const arrow =
-            new THREE.Mesh(
-                new THREE.ConeGeometry(
-                    0.7,
-                    1.6,
-                    16
-                ),
-                new THREE.MeshBasicMaterial({
-                    color: 0xff5500
-                })
-            );
+        const spriteMaterial = new THREE.SpriteMaterial({
+            map: this.pacmanTextures.up,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false
+        });
 
-        arrow.rotation.x = -Math.PI / 2;
+        this.markerSprite = new THREE.Sprite(spriteMaterial);
+        this.markerSprite.scale.set(2.4, 2.4, 1.0);
+        this.markerSprite.layers.set(1);
 
-        arrow.position.set(
-            0,
-            0,
-            -1.6
-        );
-
-        body.layers.set(1);
-        arrow.layers.set(1);
-
-        this.object3D.add(body);
-        this.object3D.add(arrow);
-
-        this.object3D.position.y = 1.2;
+        this.object3D.add(this.markerSprite);
+        this.object3D.position.y = 1.6;
+        this.currentDirection = "up";
     }
 
     update(dt, keys) {
@@ -522,6 +542,28 @@ class Player extends SceneObject {
 
         if (keys["KeyD"] || keys["ArrowRight"]) {
             this.yaw -= this.turnSpeed * dt;
+        }
+
+        // Determina a direção cardeal mais próxima com base no yaw
+        // yaw 0 = olhando para -Z (Cima na tela)
+        let normalizedYaw = this.yaw % (Math.PI * 2);
+        if (normalizedYaw < 0) normalizedYaw += Math.PI * 2;
+
+        let nextDirection = "up";
+        if (normalizedYaw >= Math.PI * 0.25 && normalizedYaw < Math.PI * 0.75) {
+            nextDirection = "left";
+        } else if (normalizedYaw >= Math.PI * 0.75 && normalizedYaw < Math.PI * 1.25) {
+            nextDirection = "down";
+        } else if (normalizedYaw >= Math.PI * 1.25 && normalizedYaw < Math.PI * 1.75) {
+            nextDirection = "right";
+        } else {
+            nextDirection = "up";
+        }
+
+        if (nextDirection !== this.currentDirection) {
+            this.currentDirection = nextDirection;
+            this.markerSprite.material.map = this.pacmanTextures[nextDirection];
+            this.markerSprite.material.needsUpdate = true;
         }
 
         // Translação
@@ -572,9 +614,40 @@ class Player extends SceneObject {
             this.z += delta.z;
         }
 
-        this.object3D.position.x = this.x;
-        this.object3D.position.z = this.z;
-        this.object3D.rotation.y = this.yaw;
+        // Calcula a posição centralizada na grade do labirinto para a vista superior
+        const currentTile = transformacoes.mundoParaTile(
+            this.x,
+            this.z,
+            this.maze.cols,
+            this.maze.rows,
+            this.maze.tile
+        );
+
+        // Se o tile atual for transitável (corredor), alinha ao centro exato do caminho
+        if (!this.maze.isWallTile(currentTile.col, currentTile.row)) {
+            const centerWorld = transformacoes.tileParaMundo(
+                currentTile.col,
+                currentTile.row,
+                this.maze.cols,
+                this.maze.rows,
+                this.maze.tile
+            );
+
+            // Se estiver se movendo primariamente na vertical ou horizontal, centraliza no eixo perpendicular
+            if (this.currentDirection === "up" || this.currentDirection === "down") {
+                this.mapX = centerWorld.x;
+                this.mapZ = this.z;
+            } else {
+                this.mapX = this.x;
+                this.mapZ = centerWorld.z;
+            }
+        } else {
+            this.mapX = this.x;
+            this.mapZ = this.z;
+        }
+
+        this.object3D.position.x = this.mapX;
+        this.object3D.position.z = this.mapZ;
     }
 }
 
