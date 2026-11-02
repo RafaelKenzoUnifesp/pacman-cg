@@ -468,6 +468,7 @@ class Player extends SceneObject {
         // Posição suave da sprite no mapa superior
         this.markerX = this.x;
         this.markerZ = this.z;
+        this.moveTrack = "vertical"; // eixo de avanço no trilho do labirinto
 
         this.buildMarker();
     }
@@ -621,8 +622,17 @@ class Player extends SceneObject {
             this.z += delta.z;
         }
 
-        // Animação da boquinha abrindo e fechando
+        // Atualiza o eixo de trilha ativo somente quando há movimento linear efetivo
         const isMoving = Math.hypot(delta.x, delta.z) > 0.0001;
+        if (isMoving) {
+            if (Math.abs(delta.z) > Math.abs(delta.x)) {
+                this.moveTrack = "vertical";
+            } else if (Math.abs(delta.x) > Math.abs(delta.z)) {
+                this.moveTrack = "horizontal";
+            }
+        }
+
+        // Animação da boquinha abrindo e fechando
         this.mouthTimer += dt * (isMoving ? 14 : 7);
         const seqIndex = Math.floor(this.mouthTimer) % this.mouthFrameSeq.length;
         const currentMouthIndex = this.mouthFrameSeq[seqIndex];
@@ -634,7 +644,7 @@ class Player extends SceneObject {
             this.markerSprite.material.needsUpdate = true;
         }
 
-        // Mantém a sprite no centro dos corredores mesmo em interseções e curvas
+        // Mantém a sprite no centro dos corredores sem deslocar ao apenas girar
         const currentTile = transformacoes.mundoParaTile(
             this.x,
             this.z,
@@ -652,23 +662,24 @@ class Player extends SceneObject {
                 this.maze.tile
             );
 
-            // Alvo padrão alinhado ao centro da célula
             let targetX = centerWorld.x;
             let targetZ = centerWorld.z;
 
-            // No eixo em que o jogador está se movendo / orientado, segue o deslocamento
-            if (this.currentDirection === "up" || this.currentDirection === "down") {
-                targetX = centerWorld.x; // trava no meio do corredor vertical
-                targetZ = this.z;        // avança suavemente em Z
+            // O trilho é baseado na translação (moveTrack), não na rotação instantânea da visão
+            if (this.moveTrack === "vertical") {
+                targetX = centerWorld.x;
+                targetZ = this.z;
             } else {
-                targetX = this.x;        // avança suavemente em X
-                targetZ = centerWorld.z; // trava no meio do corredor horizontal
+                targetX = this.x;
+                targetZ = centerWorld.z;
             }
 
-            // Interpolação suave (lerp) para transição perfeita em curvas e cruzamentos sem pulos
-            const lerpFactor = Math.min(1.0, dt * 18);
-            this.markerX += (targetX - this.markerX) * lerpFactor;
-            this.markerZ += (targetZ - this.markerZ) * lerpFactor;
+            if (isMoving) {
+                const lerpFactor = Math.min(1.0, dt * 18);
+                this.markerX += (targetX - this.markerX) * lerpFactor;
+                this.markerZ += (targetZ - this.markerZ) * lerpFactor;
+            }
+            // Se estiver parado apenas rotacionando, markerX e markerZ NÃO mudam de posição!
         } else {
             this.markerX = this.x;
             this.markerZ = this.z;
