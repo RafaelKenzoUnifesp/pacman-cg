@@ -138,7 +138,7 @@ class Scene {
             this.player
         );
         this.topCamera.follow(
-         this.player.mapX !== undefined ? { x: this.player.mapX, z: this.player.mapZ } : this.player
+         this.player
         );
         
         // Atualiza a posição da lanterna

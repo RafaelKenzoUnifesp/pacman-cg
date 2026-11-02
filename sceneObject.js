@@ -468,8 +468,8 @@ class Player extends SceneObject {
         this.buildMarker();
     }
 
-    // Gera a sprite 2D do Pac-Man clássico em um canvas
-    createPacmanSpriteTexture(directionAngle) {
+    // Gera a sprite 2D do Pac-Man clássico em um canvas com abertura de boca parametrizável
+    createPacmanSpriteTexture(directionAngle, mouthAngleFraction = 0.28) {
 
         const size = 64;
         const canvas = document.createElement("canvas");
@@ -479,16 +479,19 @@ class Player extends SceneObject {
 
         const center = size / 2;
         const radius = size * 0.44;
-        const mouthAngle = 0.28 * Math.PI;
-
-        const startAngle = directionAngle + mouthAngle / 2;
-        const endAngle = directionAngle + (2 * Math.PI - mouthAngle / 2);
+        const mouthAngle = mouthAngleFraction * Math.PI;
 
         ctx.fillStyle = "#ffe600";
         ctx.beginPath();
-        ctx.moveTo(center, center);
-        ctx.arc(center, center, radius, startAngle, endAngle, false);
-        ctx.closePath();
+        if (mouthAngleFraction <= 0.02) {
+            ctx.arc(center, center, radius, 0, Math.PI * 2, false);
+        } else {
+            const startAngle = directionAngle + mouthAngle / 2;
+            const endAngle = directionAngle + (2 * Math.PI - mouthAngle / 2);
+            ctx.moveTo(center, center);
+            ctx.arc(center, center, radius, startAngle, endAngle, false);
+            ctx.closePath();
+        }
         ctx.fill();
 
         // Borda sutil de destaque
@@ -504,21 +507,24 @@ class Player extends SceneObject {
     // Marcador 2D do Pac-Man exclusivo da vista superior
     buildMarker() {
 
-        // Texturas para as 4 direções discretas (olhando na tela: Cima, Direita, Baixo, Esquerda)
-        // No plano XZ com câmera de cima (up=(0,0,-1)):
-        //   -Z é para cima na tela -> ângulo -PI/2
-        //   +X é para a direita na tela -> ângulo 0
-        //   +Z é para baixo na tela -> ângulo +PI/2
-        //   -X é para a esquerda na tela -> ângulo PI
+        // Frames de animação da boca: aberta (0.30), semiaberta (0.16) e fechada (0.0)
+        const mouthAngles = [0.30, 0.16, 0.02];
+        const dirAngles = {
+            up: -Math.PI / 2,
+            right: 0,
+            down: Math.PI / 2,
+            left: Math.PI
+        };
+
         this.pacmanTextures = {
-            up: this.createPacmanSpriteTexture(-Math.PI / 2),
-            right: this.createPacmanSpriteTexture(0),
-            down: this.createPacmanSpriteTexture(Math.PI / 2),
-            left: this.createPacmanSpriteTexture(Math.PI)
+            up: mouthAngles.map(m => this.createPacmanSpriteTexture(dirAngles.up, m)),
+            right: mouthAngles.map(m => this.createPacmanSpriteTexture(dirAngles.right, m)),
+            down: mouthAngles.map(m => this.createPacmanSpriteTexture(dirAngles.down, m)),
+            left: mouthAngles.map(m => this.createPacmanSpriteTexture(dirAngles.left, m))
         };
 
         const spriteMaterial = new THREE.SpriteMaterial({
-            map: this.pacmanTextures.up,
+            map: this.pacmanTextures.up[0],
             transparent: true,
             depthTest: false,
             depthWrite: false
@@ -531,6 +537,9 @@ class Player extends SceneObject {
         this.object3D.add(this.markerSprite);
         this.object3D.position.y = 1.6;
         this.currentDirection = "up";
+        this.mouthTimer = 0;
+        this.mouthFrame = 0;
+        this.mouthFrameSeq = [0, 1, 2, 1]; // aberta -> meia -> fechada -> meia
     }
 
     update(dt, keys) {
@@ -558,12 +567,6 @@ class Player extends SceneObject {
             nextDirection = "right";
         } else {
             nextDirection = "up";
-        }
-
-        if (nextDirection !== this.currentDirection) {
-            this.currentDirection = nextDirection;
-            this.markerSprite.material.map = this.pacmanTextures[nextDirection];
-            this.markerSprite.material.needsUpdate = true;
         }
 
         // Translação
@@ -614,7 +617,20 @@ class Player extends SceneObject {
             this.z += delta.z;
         }
 
-        // Calcula a posição centralizada na grade do labirinto para a vista superior
+        // Animação da boquinha abrindo e fechando
+        const isMoving = Math.hypot(delta.x, delta.z) > 0.0001;
+        this.mouthTimer += dt * (isMoving ? 14 : 7);
+        const seqIndex = Math.floor(this.mouthTimer) % this.mouthFrameSeq.length;
+        const currentMouthIndex = this.mouthFrameSeq[seqIndex];
+
+        if (nextDirection !== this.currentDirection || currentMouthIndex !== this.mouthFrame) {
+            this.currentDirection = nextDirection;
+            this.mouthFrame = currentMouthIndex;
+            this.markerSprite.material.map = this.pacmanTextures[nextDirection][currentMouthIndex];
+            this.markerSprite.material.needsUpdate = true;
+        }
+
+        // Centralização suave no meio do corredor apenas no eixo de folga (sem teleporte)
         const currentTile = transformacoes.mundoParaTile(
             this.x,
             this.z,
@@ -623,7 +639,6 @@ class Player extends SceneObject {
             this.maze.tile
         );
 
-        // Se o tile atual for transitável (corredor), alinha ao centro exato do caminho
         if (!this.maze.isWallTile(currentTile.col, currentTile.row)) {
             const centerWorld = transformacoes.tileParaMundo(
                 currentTile.col,
@@ -633,21 +648,33 @@ class Player extends SceneObject {
                 this.maze.tile
             );
 
-            // Se estiver se movendo primariamente na vertical ou horizontal, centraliza no eixo perpendicular
-            if (this.currentDirection === "up" || this.currentDirection === "down") {
-                this.mapX = centerWorld.x;
-                this.mapZ = this.z;
+            // Se o tile da frente ou de trás for corredor, é corredor vertical
+            const isVerticalCorridor =
+                !this.maze.isWallTile(currentTile.col, currentTile.row - 1) ||
+                !this.maze.isWallTile(currentTile.col, currentTile.row + 1);
+
+            // Se o tile da esquerda ou direita for corredor, é corredor horizontal
+            const isHorizontalCorridor =
+                !this.maze.isWallTile(currentTile.col - 1, currentTile.row) ||
+                !this.maze.isWallTile(currentTile.col + 1, currentTile.row);
+
+            // Em corredores puramente verticais, puxa suavemente o X para o centro
+            if (isVerticalCorridor && !isHorizontalCorridor) {
+                this.object3D.position.x = centerWorld.x;
+                this.object3D.position.z = this.z;
+            } else if (isHorizontalCorridor && !isVerticalCorridor) {
+                // Em corredores puramente horizontais, puxa suavemente o Z para o centro
+                this.object3D.position.x = this.x;
+                this.object3D.position.z = centerWorld.z;
             } else {
-                this.mapX = this.x;
-                this.mapZ = centerWorld.z;
+                // Em cruzamentos/curvas, segue a posição real
+                this.object3D.position.x = this.x;
+                this.object3D.position.z = this.z;
             }
         } else {
-            this.mapX = this.x;
-            this.mapZ = this.z;
+            this.object3D.position.x = this.x;
+            this.object3D.position.z = this.z;
         }
-
-        this.object3D.position.x = this.mapX;
-        this.object3D.position.z = this.mapZ;
     }
 }
 
