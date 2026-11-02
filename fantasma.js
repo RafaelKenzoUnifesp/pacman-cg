@@ -16,6 +16,7 @@ class Ghost extends SceneObject {
         this.z = spawn.z;
 
         this.buildModel();
+        this.buildLight();
         this.object3D.position.set(this.x, 0, this.z);
     }
 
@@ -33,9 +34,23 @@ class Ghost extends SceneObject {
     }
 
     buildModel() {
-        const bodyMaterial = new THREE.MeshBasicMaterial({ color: this.color });
-        const eyeWhiteMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-        const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0x101044 });
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: this.color,
+            emissive: this.color,
+            emissiveIntensity: 0.85,
+            roughness: 0.25,
+            metalness: 0.2
+        });
+        const eyeWhiteMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.4,
+            roughness: 0.2
+        });
+        const pupilMaterial = new THREE.MeshStandardMaterial({
+            color: 0x101044,
+            roughness: 0.2
+        });
 
         // Cúpula superior do corpo.
         const dome = new THREE.Mesh(
@@ -80,6 +95,17 @@ class Ghost extends SceneObject {
             pupil.position.set(x, 1.08, -0.94);
             this.object3D.add(pupil);
         });
+    }
+
+    buildLight() {
+        this.light = new THREE.PointLight(this.color, 1.8, 6.5, 2);
+        this.light.position.set(0, 1.2, 0);
+        this.light.castShadow = true;
+        this.light.shadow.mapSize.set(256, 256);
+        this.light.shadow.camera.near = 0.2;
+        this.light.shadow.camera.far = 7;
+        this.light.shadow.bias = -0.002;
+        this.object3D.add(this.light);
     }
 
     update(dt) {

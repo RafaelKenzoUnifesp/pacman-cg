@@ -17,6 +17,8 @@ class Renderer {
         );
 
         this.renderer.autoClear = false;
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
         this.topBorder =
             document.getElementById("topBorder");

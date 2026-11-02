@@ -16,24 +16,28 @@ class Scene {
         this.renderer = new Renderer(canvas);
         this.scene = new THREE.Scene();
         this.scene.fog = new THREE.Fog(
-            0x020206,
-            5,
-            20
-    );
+            0x000000,
+            3,
+            15
+        );
         this.scene.background = new THREE.Color(0x000000);
 
         // Iluminação ambiente fraca
-        this.ambientLight = new THREE.AmbientLight(0x263044, 0.12);
+        this.ambientLight = new THREE.AmbientLight(0x101830, 0.06);
         this.scene.add(this.ambientLight);
+
+        // Luz curta ao redor do jogador (visibilidade próxima e minimapa)
+        this.playerLight = new THREE.PointLight(0xffe0a3, 1.0, 8, 2);
+        this.scene.add(this.playerLight);
 
         // Lanterna do jogador
         this.flashlight = new THREE.SpotLight(
-         0xffe8c0,
-            35,
-            18,
-         Math.PI / 5,
-         0.45,
-        1.5
+            0xfff4dc,
+            2.8,
+            16,
+            Math.PI / 4.5,
+            0.5,
+            1.6
         );
 
         this.flashlight.castShadow = true;
@@ -142,6 +146,12 @@ class Scene {
         );
         
         // Atualiza a posição da lanterna
+        this.playerLight.position.set(
+            this.player.x,
+            this.povCamera.eyeHeight + 0.5,
+            this.player.z
+        );
+
         this.flashlight.position.copy(
          this.povCamera.camera.position
         );

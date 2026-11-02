@@ -46,6 +46,84 @@ class Maze extends SceneObject {
     }
 
     // --------------------------------------------------
+    // TEXTURAS PROCEDURAIS
+    // --------------------------------------------------
+
+    createWallTexture() {
+
+        const size = 128;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext("2d");
+
+        ctx.fillStyle = "#0a1a3a";
+        ctx.fillRect(0, 0, size, size);
+
+        ctx.strokeStyle = "#12306e";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, size / 2);
+        ctx.lineTo(size, size / 2);
+        ctx.moveTo(size / 2, 0);
+        ctx.lineTo(size / 2, size);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#2f6bff";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, size - 4, size - 4);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.encoding = THREE.sRGBEncoding;
+
+        return texture;
+    }
+
+    createFloorTexture() {
+
+        const size = 256;
+        const half = size / 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext("2d");
+
+        // Ladrilhos xadrez escuros
+        ctx.fillStyle = "#080910";
+        ctx.fillRect(0, 0, size, size);
+
+        ctx.fillStyle = "#141728";
+        ctx.fillRect(0, 0, half, half);
+        ctx.fillRect(half, half, half, half);
+
+        // Borda interna sutil de cada ladrilho
+        ctx.strokeStyle = "rgba(80, 100, 160, 0.12)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(4, 4, half - 8, half - 8);
+        ctx.strokeRect(half + 4, 4, half - 8, half - 8);
+        ctx.strokeRect(4, half + 4, half - 8, half - 8);
+        ctx.strokeRect(half + 4, half + 4, half - 8, half - 8);
+
+        // Rejunte escuro entre os blocos
+        ctx.strokeStyle = "#040408";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(0, 0, half, half);
+        ctx.strokeRect(half, 0, half, half);
+        ctx.strokeRect(0, half, half, half);
+        ctx.strokeRect(half, half, half, half);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(this.cols, this.rows);
+        texture.encoding = THREE.sRGBEncoding;
+
+        return texture;
+    }
+
+    // --------------------------------------------------
     // CONSTRUÇÃO DO CENÁRIO
     // --------------------------------------------------
 
@@ -65,31 +143,22 @@ class Maze extends SceneObject {
                 wallGeometry
             );
 
-        const textureLoader = new THREE.TextureLoader();
-
-        const wallTexture = textureLoader.load(
-          "./assets/textures/wall_concrete.jpg"
-        );
-
-        wallTexture.colorSpace = THREE.SRGBColorSpace;
-
-        wallTexture.wrapS = THREE.RepeatWrapping;
-        wallTexture.wrapT = THREE.RepeatWrapping;
-
-        wallTexture.repeat.set(1, 1);
-
+        const wallTexture = this.createWallTexture();
 
         const wallMaterial =
-            new THREE.MeshBasicMaterial({
+            new THREE.MeshStandardMaterial({
                 map: wallTexture,
-                color: 0x777777,
-                roughness: 0.95,
-                metalness: 0.0
+                color: 0x3b6eff,
+                emissive: 0x081848,
+                emissiveMap: wallTexture,
+                emissiveIntensity: 0.25,
+                roughness: 0.4,
+                metalness: 0.65
             });
 
         const wallEdgeMaterial =
             new THREE.LineBasicMaterial({
-                color: 0x242936
+                color: 0x0a1026
             });
 
         const doorGeometry =
@@ -100,8 +169,10 @@ class Maze extends SceneObject {
             );
 
         const doorMaterial =
-            new THREE.MeshBasicMaterial({
-                color: 0xff9ad5
+            new THREE.MeshStandardMaterial({
+                color: 0xff9ad5,
+                emissive: 0x441133,
+                roughness: 0.4
             });
 
         const dotGeometry =
@@ -112,8 +183,11 @@ class Maze extends SceneObject {
             );
 
         const dotMaterial =
-            new THREE.MeshBasicMaterial({
-                color: 0xffe9b0
+            new THREE.MeshStandardMaterial({
+                color: 0xffe9b0,
+                emissive: 0xffb84d,
+                emissiveIntensity: 0.22,
+                roughness: 0.35
             });
 
         const pelletGeometry =
@@ -124,8 +198,11 @@ class Maze extends SceneObject {
             );
 
         const pelletMaterial =
-            new THREE.MeshBasicMaterial({
-                color: 0xffffff
+            new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0xffe066,
+                emissiveIntensity: 1.4,
+                roughness: 0.1
             });
 
         for (let row = 0; row < this.rows; row++) {
@@ -157,6 +234,8 @@ class Maze extends SceneObject {
                         this.wallHeight / 2,
                         position.z
                     );
+                    wall.castShadow = true;
+                    wall.receiveShadow = true;
 
                     const edges =
                         new THREE.LineSegments(
@@ -221,6 +300,10 @@ class Maze extends SceneObject {
                     this.object3D.add(pellet);
                     this.pellets.push(pellet);
 
+                    const pelletLight = new THREE.PointLight(0xffdd66, 1.5, 6, 2);
+                    pelletLight.position.copy(pellet.position);
+                    this.object3D.add(pelletLight);
+
                 } else if (tileChar === "P") {
 
                     this.playerSpawn = position;
@@ -241,14 +324,15 @@ class Maze extends SceneObject {
                     this.cols * this.tile,
                     this.rows * this.tile
                 ),
-                new THREE.MeshBasicMaterial({
-                    color: 0x18181d,
-                    roughness: 1.0,
-                    metalness: 0.0
+                new THREE.MeshStandardMaterial({
+                    map: this.createFloorTexture(),
+                    roughness: 0.55,
+                    metalness: 0.2
                 })
             );
 
         floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
 
         this.object3D.add(floor);
     }

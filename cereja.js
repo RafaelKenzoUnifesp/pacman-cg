@@ -13,8 +13,8 @@ class Cherry extends SceneObject {
     }
 
     buildModel() {
-        const red = new THREE.MeshBasicMaterial({ color: 0xe51b3e });
-        const green = new THREE.MeshBasicMaterial({ color: 0x32b85a });
+        const red = new THREE.MeshStandardMaterial({ color: 0xe51b3e, emissive: 0x33050d, roughness: 0.35 });
+        const green = new THREE.MeshStandardMaterial({ color: 0x32b85a, emissive: 0x082210, roughness: 0.5 });
         const fruitGeometry = new THREE.SphereGeometry(0.32, 20, 16);
 
         const leftFruit = new THREE.Mesh(fruitGeometry, red);
