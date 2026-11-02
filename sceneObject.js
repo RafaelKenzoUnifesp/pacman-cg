@@ -465,6 +465,10 @@ class Player extends SceneObject {
         this.z = maze.playerSpawn.z;
         this.yaw = 0;
 
+        // Posição suave da sprite no mapa superior
+        this.markerX = this.x;
+        this.markerZ = this.z;
+
         this.buildMarker();
     }
 
@@ -630,7 +634,7 @@ class Player extends SceneObject {
             this.markerSprite.material.needsUpdate = true;
         }
 
-        // Centralização suave no meio do corredor apenas no eixo de folga (sem teleporte)
+        // Mantém a sprite no centro dos corredores mesmo em interseções e curvas
         const currentTile = transformacoes.mundoParaTile(
             this.x,
             this.z,
@@ -648,33 +652,30 @@ class Player extends SceneObject {
                 this.maze.tile
             );
 
-            // Se o tile da frente ou de trás for corredor, é corredor vertical
-            const isVerticalCorridor =
-                !this.maze.isWallTile(currentTile.col, currentTile.row - 1) ||
-                !this.maze.isWallTile(currentTile.col, currentTile.row + 1);
+            // Alvo padrão alinhado ao centro da célula
+            let targetX = centerWorld.x;
+            let targetZ = centerWorld.z;
 
-            // Se o tile da esquerda ou direita for corredor, é corredor horizontal
-            const isHorizontalCorridor =
-                !this.maze.isWallTile(currentTile.col - 1, currentTile.row) ||
-                !this.maze.isWallTile(currentTile.col + 1, currentTile.row);
-
-            // Em corredores puramente verticais, puxa suavemente o X para o centro
-            if (isVerticalCorridor && !isHorizontalCorridor) {
-                this.object3D.position.x = centerWorld.x;
-                this.object3D.position.z = this.z;
-            } else if (isHorizontalCorridor && !isVerticalCorridor) {
-                // Em corredores puramente horizontais, puxa suavemente o Z para o centro
-                this.object3D.position.x = this.x;
-                this.object3D.position.z = centerWorld.z;
+            // No eixo em que o jogador está se movendo / orientado, segue o deslocamento
+            if (this.currentDirection === "up" || this.currentDirection === "down") {
+                targetX = centerWorld.x; // trava no meio do corredor vertical
+                targetZ = this.z;        // avança suavemente em Z
             } else {
-                // Em cruzamentos/curvas, segue a posição real
-                this.object3D.position.x = this.x;
-                this.object3D.position.z = this.z;
+                targetX = this.x;        // avança suavemente em X
+                targetZ = centerWorld.z; // trava no meio do corredor horizontal
             }
+
+            // Interpolação suave (lerp) para transição perfeita em curvas e cruzamentos sem pulos
+            const lerpFactor = Math.min(1.0, dt * 18);
+            this.markerX += (targetX - this.markerX) * lerpFactor;
+            this.markerZ += (targetZ - this.markerZ) * lerpFactor;
         } else {
-            this.object3D.position.x = this.x;
-            this.object3D.position.z = this.z;
+            this.markerX = this.x;
+            this.markerZ = this.z;
         }
+
+        this.object3D.position.x = this.markerX;
+        this.object3D.position.z = this.markerZ;
     }
 }
 
