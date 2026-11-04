@@ -46,6 +46,84 @@ class Maze extends SceneObject {
     }
 
     // --------------------------------------------------
+    // TEXTURAS PROCEDURAIS
+    // --------------------------------------------------
+
+    createWallTexture() {
+
+        const size = 128;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext("2d");
+
+        ctx.fillStyle = "#142c66";
+        ctx.fillRect(0, 0, size, size);
+
+        ctx.strokeStyle = "#234a9e";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, size / 2);
+        ctx.lineTo(size, size / 2);
+        ctx.moveTo(size / 2, 0);
+        ctx.lineTo(size / 2, size);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#4580ff";
+        ctx.lineWidth = 4;
+        ctx.strokeRect(2, 2, size - 4, size - 4);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.encoding = THREE.sRGBEncoding;
+
+        return texture;
+    }
+
+    createFloorTexture() {
+
+        const size = 256;
+        const half = size / 2;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext("2d");
+
+        // Ladrilhos xadrez com tom difuso para espalhar a luz ao redor
+        ctx.fillStyle = "#181c2e";
+        ctx.fillRect(0, 0, size, size);
+
+        ctx.fillStyle = "#2c3350";
+        ctx.fillRect(0, 0, half, half);
+        ctx.fillRect(half, half, half, half);
+
+        // Borda interna sutil de cada ladrilho
+        ctx.strokeStyle = "rgba(130, 150, 210, 0.15)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(4, 4, half - 8, half - 8);
+        ctx.strokeRect(half + 4, 4, half - 8, half - 8);
+        ctx.strokeRect(4, half + 4, half - 8, half - 8);
+        ctx.strokeRect(half + 4, half + 4, half - 8, half - 8);
+
+        // Rejunte escuro entre os blocos
+        ctx.strokeStyle = "#0c0e18";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(0, 0, half, half);
+        ctx.strokeRect(half, 0, half, half);
+        ctx.strokeRect(0, half, half, half);
+        ctx.strokeRect(half, half, half, half);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(this.cols, this.rows);
+        texture.encoding = THREE.sRGBEncoding;
+
+        return texture;
+    }
+
+    // --------------------------------------------------
     // CONSTRUÇÃO DO CENÁRIO
     // --------------------------------------------------
 
@@ -65,31 +143,22 @@ class Maze extends SceneObject {
                 wallGeometry
             );
 
-        const textureLoader = new THREE.TextureLoader();
-
-        const wallTexture = textureLoader.load(
-          "./assets/textures/wall_concrete.jpg"
-        );
-
-        wallTexture.colorSpace = THREE.SRGBColorSpace;
-
-        wallTexture.wrapS = THREE.RepeatWrapping;
-        wallTexture.wrapT = THREE.RepeatWrapping;
-
-        wallTexture.repeat.set(1, 1);
-
+        const wallTexture = this.createWallTexture();
 
         const wallMaterial =
-            new THREE.MeshBasicMaterial({
+            new THREE.MeshStandardMaterial({
                 map: wallTexture,
-                color: 0x777777,
-                roughness: 0.95,
-                metalness: 0.0
+                color: 0x70a0ff,
+                emissive: 0x061236,
+                emissiveMap: wallTexture,
+                emissiveIntensity: 0.2,
+                roughness: 0.78,
+                metalness: 0.12
             });
 
         const wallEdgeMaterial =
             new THREE.LineBasicMaterial({
-                color: 0x242936
+                color: 0x4d88ff
             });
 
         const doorGeometry =
@@ -100,8 +169,10 @@ class Maze extends SceneObject {
             );
 
         const doorMaterial =
-            new THREE.MeshBasicMaterial({
-                color: 0xff9ad5
+            new THREE.MeshStandardMaterial({
+                color: 0xff9ad5,
+                emissive: 0x441133,
+                roughness: 0.4
             });
 
         const dotGeometry =
@@ -112,8 +183,11 @@ class Maze extends SceneObject {
             );
 
         const dotMaterial =
-            new THREE.MeshBasicMaterial({
-                color: 0xffe9b0
+            new THREE.MeshStandardMaterial({
+                color: 0xffe9b0,
+                emissive: 0xffb84d,
+                emissiveIntensity: 0.22,
+                roughness: 0.35
             });
 
         const pelletGeometry =
@@ -124,8 +198,11 @@ class Maze extends SceneObject {
             );
 
         const pelletMaterial =
-            new THREE.MeshBasicMaterial({
-                color: 0xffffff
+            new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                emissive: 0xffe066,
+                emissiveIntensity: 1.4,
+                roughness: 0.1
             });
 
         for (let row = 0; row < this.rows; row++) {
@@ -167,6 +244,7 @@ class Maze extends SceneObject {
                     edges.position.copy(
                         wall.position
                     );
+                    edges.layers.set(1);
 
                     this.object3D.add(wall);
                     this.object3D.add(edges);
@@ -241,10 +319,10 @@ class Maze extends SceneObject {
                     this.cols * this.tile,
                     this.rows * this.tile
                 ),
-                new THREE.MeshBasicMaterial({
-                    color: 0x18181d,
-                    roughness: 1.0,
-                    metalness: 0.0
+                new THREE.MeshStandardMaterial({
+                    map: this.createFloorTexture(),
+                    roughness: 0.88,
+                    metalness: 0.05
                 })
             );
 
@@ -387,52 +465,86 @@ class Player extends SceneObject {
         this.z = maze.playerSpawn.z;
         this.yaw = 0;
 
+        // Posição suave da sprite no mapa superior
+        this.markerX = this.x;
+        this.markerZ = this.z;
+        this.moveTrack = "vertical"; // eixo de avanço no trilho do labirinto
+
         this.buildMarker();
     }
 
-    // TODO: substituir pelo modelo 3D do Pac-Man quando estiver pronto
-    // O marcador usa a camada 1, portanto só aparece na vista superior
+    // Gera a sprite 2D do Pac-Man clássico em um canvas com abertura de boca parametrizável
+    createPacmanSpriteTexture(directionAngle, mouthAngleFraction = 0.28) {
+
+        const size = 64;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+
+        const center = size / 2;
+        const radius = size * 0.44;
+        const mouthAngle = mouthAngleFraction * Math.PI;
+
+        ctx.fillStyle = "#ffe600";
+        ctx.beginPath();
+        if (mouthAngleFraction <= 0.02) {
+            ctx.arc(center, center, radius, 0, Math.PI * 2, false);
+        } else {
+            const startAngle = directionAngle + mouthAngle / 2;
+            const endAngle = directionAngle + (2 * Math.PI - mouthAngle / 2);
+            ctx.moveTo(center, center);
+            ctx.arc(center, center, radius, startAngle, endAngle, false);
+            ctx.closePath();
+        }
+        ctx.fill();
+
+        // Borda sutil de destaque
+        ctx.strokeStyle = "#cca300";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.encoding = THREE.sRGBEncoding;
+        return texture;
+    }
+
+    // Marcador 2D do Pac-Man exclusivo da vista superior
     buildMarker() {
 
-        const body =
-            new THREE.Mesh(
-                new THREE.SphereGeometry(
-                    1.1,
-                    20,
-                    20
-                ),
-                new THREE.MeshBasicMaterial({
-                    color: 0xffd200
-                })
-            );
+        // Frames de animação da boca: aberta (0.30), semiaberta (0.16) e fechada (0.0)
+        const mouthAngles = [0.30, 0.16, 0.02];
+        const dirAngles = {
+            up: -Math.PI / 2,
+            right: 0,
+            down: Math.PI / 2,
+            left: Math.PI
+        };
 
-        const arrow =
-            new THREE.Mesh(
-                new THREE.ConeGeometry(
-                    0.7,
-                    1.6,
-                    16
-                ),
-                new THREE.MeshBasicMaterial({
-                    color: 0xff5500
-                })
-            );
+        this.pacmanTextures = {
+            up: mouthAngles.map(m => this.createPacmanSpriteTexture(dirAngles.up, m)),
+            right: mouthAngles.map(m => this.createPacmanSpriteTexture(dirAngles.right, m)),
+            down: mouthAngles.map(m => this.createPacmanSpriteTexture(dirAngles.down, m)),
+            left: mouthAngles.map(m => this.createPacmanSpriteTexture(dirAngles.left, m))
+        };
 
-        arrow.rotation.x = -Math.PI / 2;
+        const spriteMaterial = new THREE.SpriteMaterial({
+            map: this.pacmanTextures.up[0],
+            transparent: true,
+            depthTest: false,
+            depthWrite: false
+        });
 
-        arrow.position.set(
-            0,
-            0,
-            -1.6
-        );
+        this.markerSprite = new THREE.Sprite(spriteMaterial);
+        this.markerSprite.scale.set(2.4, 2.4, 1.0);
+        this.markerSprite.layers.set(1);
 
-        body.layers.set(1);
-        arrow.layers.set(1);
-
-        this.object3D.add(body);
-        this.object3D.add(arrow);
-
-        this.object3D.position.y = 1.2;
+        this.object3D.add(this.markerSprite);
+        this.object3D.position.y = 1.6;
+        this.currentDirection = "up";
+        this.mouthTimer = 0;
+        this.mouthFrame = 0;
+        this.mouthFrameSeq = [0, 1, 2, 1]; // aberta -> meia -> fechada -> meia
     }
 
     update(dt, keys) {
@@ -444,6 +556,22 @@ class Player extends SceneObject {
 
         if (keys["KeyD"] || keys["ArrowRight"]) {
             this.yaw -= this.turnSpeed * dt;
+        }
+
+        // Determina a direção cardeal mais próxima com base no yaw
+        // yaw 0 = olhando para -Z (Cima na tela)
+        let normalizedYaw = this.yaw % (Math.PI * 2);
+        if (normalizedYaw < 0) normalizedYaw += Math.PI * 2;
+
+        let nextDirection = "up";
+        if (normalizedYaw >= Math.PI * 0.25 && normalizedYaw < Math.PI * 0.75) {
+            nextDirection = "left";
+        } else if (normalizedYaw >= Math.PI * 0.75 && normalizedYaw < Math.PI * 1.25) {
+            nextDirection = "down";
+        } else if (normalizedYaw >= Math.PI * 1.25 && normalizedYaw < Math.PI * 1.75) {
+            nextDirection = "right";
+        } else {
+            nextDirection = "up";
         }
 
         // Translação
@@ -494,9 +622,71 @@ class Player extends SceneObject {
             this.z += delta.z;
         }
 
-        this.object3D.position.x = this.x;
-        this.object3D.position.z = this.z;
-        this.object3D.rotation.y = this.yaw;
+        // Atualiza o eixo de trilha ativo somente quando há movimento linear efetivo
+        const isMoving = Math.hypot(delta.x, delta.z) > 0.0001;
+        if (isMoving) {
+            if (Math.abs(delta.z) > Math.abs(delta.x)) {
+                this.moveTrack = "vertical";
+            } else if (Math.abs(delta.x) > Math.abs(delta.z)) {
+                this.moveTrack = "horizontal";
+            }
+        }
+
+        // Animação da boquinha abrindo e fechando
+        this.mouthTimer += dt * (isMoving ? 14 : 7);
+        const seqIndex = Math.floor(this.mouthTimer) % this.mouthFrameSeq.length;
+        const currentMouthIndex = this.mouthFrameSeq[seqIndex];
+
+        if (nextDirection !== this.currentDirection || currentMouthIndex !== this.mouthFrame) {
+            this.currentDirection = nextDirection;
+            this.mouthFrame = currentMouthIndex;
+            this.markerSprite.material.map = this.pacmanTextures[nextDirection][currentMouthIndex];
+            this.markerSprite.material.needsUpdate = true;
+        }
+
+        // Mantém a sprite no centro dos corredores sem deslocar ao apenas girar
+        const currentTile = transformacoes.mundoParaTile(
+            this.x,
+            this.z,
+            this.maze.cols,
+            this.maze.rows,
+            this.maze.tile
+        );
+
+        if (!this.maze.isWallTile(currentTile.col, currentTile.row)) {
+            const centerWorld = transformacoes.tileParaMundo(
+                currentTile.col,
+                currentTile.row,
+                this.maze.cols,
+                this.maze.rows,
+                this.maze.tile
+            );
+
+            let targetX = centerWorld.x;
+            let targetZ = centerWorld.z;
+
+            // O trilho é baseado na translação (moveTrack), não na rotação instantânea da visão
+            if (this.moveTrack === "vertical") {
+                targetX = centerWorld.x;
+                targetZ = this.z;
+            } else {
+                targetX = this.x;
+                targetZ = centerWorld.z;
+            }
+
+            if (isMoving) {
+                const lerpFactor = Math.min(1.0, dt * 18);
+                this.markerX += (targetX - this.markerX) * lerpFactor;
+                this.markerZ += (targetZ - this.markerZ) * lerpFactor;
+            }
+            // Se estiver parado apenas rotacionando, markerX e markerZ NÃO mudam de posição!
+        } else {
+            this.markerX = this.x;
+            this.markerZ = this.z;
+        }
+
+        this.object3D.position.x = this.markerX;
+        this.object3D.position.z = this.markerZ;
     }
 }
 

@@ -31,6 +31,12 @@
             position: absolute;
             border: 3px solid #ffd200;
             pointer-events: none;
+            background: radial-gradient(
+                circle,
+                rgba(0, 0, 0, 0) 32%,
+                rgba(0, 0, 0, 0.82) 56%,
+                #000000 68%
+            );
         }
 
         #hud {
@@ -38,10 +44,11 @@
             left: 16px;
             bottom: 16px;
             color: #ffffff;
-            font-size: 13px;
-            line-height: 1.6;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px;
             background: rgba(0, 0, 0, 0.55);
-            padding: 10px 14px;
+            padding: 10px 16px;
             border: 1px solid #1919a6;
             pointer-events: none;
         }
@@ -54,11 +61,7 @@
 
     <div id="topBorder"></div>
 
-    <div id="hud">
-        PAC-MAN 3D<br>
-        W / S ou &uarr; / &darr;: andar<br>
-        A / D ou &larr; / &rarr;: girar
-    </div>
+    <div id="hud">PONTUAÇÃO: 0</div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="transformacoes.js"></script>

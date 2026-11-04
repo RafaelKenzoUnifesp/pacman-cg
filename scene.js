@@ -16,30 +16,30 @@ class Scene {
         this.renderer = new Renderer(canvas);
         this.scene = new THREE.Scene();
         this.scene.fog = new THREE.Fog(
-            0x020206,
-            5,
-            20
-    );
+            0x000000,
+            3,
+            15
+        );
         this.scene.background = new THREE.Color(0x000000);
 
         // Iluminação ambiente fraca
-        this.ambientLight = new THREE.AmbientLight(0x263044, 0.12);
+        this.ambientLight = new THREE.AmbientLight(0x141e38, 0.1);
         this.scene.add(this.ambientLight);
+        this.scene.userData.ambientLight = this.ambientLight;
 
-        // Lanterna do jogador
+        // Luz difusa ao redor do jogador (ilumina os arredores e o minimapa)
+        this.playerLight = new THREE.PointLight(0xffe6b8, 1.8, 12, 1);
+        this.scene.add(this.playerLight);
+
+        // Lanterna do jogador com cone aberto e suave
         this.flashlight = new THREE.SpotLight(
-         0xffe8c0,
-            35,
+            0xfff4dc,
+            2.2,
             18,
-         Math.PI / 5,
-         0.45,
-        1.5
+            Math.PI / 3,
+            0.85,
+            1
         );
-
-        this.flashlight.castShadow = true;
-        this.flashlight.shadow.mapSize.set(1024, 1024);
-        this.flashlight.shadow.camera.near = 0.1;
-        this.flashlight.shadow.camera.far = 20;
 
         this.flashlightTarget = new THREE.Object3D();
 
@@ -65,7 +65,7 @@ class Scene {
 
         this.cherry = new Cherry(cherrySpawn || cherrySpawnCandidates[1]);
 
-        const ghostColors = [0xff3030, 0xff80c0, 0x40dfff, 0xffa040];
+        const ghostColors = [0xff0055, 0xff00ea, 0x00f7ff, 0xff7b00];
         this.ghosts = ghostColors.map((color, index) =>
             new Ghost(this.maze, index, color)
         );
@@ -142,6 +142,12 @@ class Scene {
         );
         
         // Atualiza a posição da lanterna
+        this.playerLight.position.set(
+            this.player.x,
+            this.povCamera.eyeHeight + 0.5,
+            this.player.z
+        );
+
         this.flashlight.position.copy(
          this.povCamera.camera.position
         );

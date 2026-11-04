@@ -18,6 +18,8 @@ class Renderer {
 
         this.renderer.autoClear = false;
 
+        this.topFog = new THREE.Fog(0x020206, 8, 18);
+
         this.topBorder =
             document.getElementById("topBorder");
 
@@ -99,15 +101,16 @@ class Renderer {
         );
 
         const fogOriginal = scene.fog;
-        scene.fog = new THREE.Fog(
-            0x020206,
-            8,
-            18
-        );
+        scene.fog = null;
+
+        const ambient = scene.userData.ambientLight;
+        const ambientOriginal = ambient ? ambient.intensity : 0;
+        if (ambient) ambient.intensity = 1.1;
 
         renderer.clear();
         renderer.render(scene, topCamera);
 
+        if (ambient) ambient.intensity = ambientOriginal;
         scene.fog = fogOriginal;
     }
 }
