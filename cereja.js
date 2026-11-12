@@ -13,8 +13,33 @@ class Cherry extends SceneObject {
     }
 
     buildModel() {
-        const red = new THREE.MeshStandardMaterial({ color: 0xe51b3e, emissive: 0x33050d, roughness: 0.35 });
-        const green = new THREE.MeshStandardMaterial({ color: 0x32b85a, emissive: 0x082210, roughness: 0.5 });
+        const cherryMaps = TextureAssets.loadPBRSet("cereja_leather_white", {
+            repeatX: 2,
+            repeatY: 1,
+            anisotropy: 4
+        });
+
+        const red = new THREE.MeshStandardMaterial({
+            map: cherryMaps.map,
+            normalMap: cherryMaps.normalMap,
+            normalScale: new THREE.Vector2(1.4, 1.4),
+            roughnessMap: cherryMaps.roughnessMap,
+            color: 0xff244c,
+            emissive: 0x33050d,
+            emissiveIntensity: 0.45,
+            roughness: 0.45,
+            metalness: 0.1
+        });
+        const green = new THREE.MeshStandardMaterial({
+            map: cherryMaps.map,
+            normalMap: cherryMaps.normalMap,
+            normalScale: new THREE.Vector2(1.2, 1.2),
+            roughnessMap: cherryMaps.roughnessMap,
+            color: 0x3ad168,
+            emissive: 0x082210,
+            emissiveIntensity: 0.3,
+            roughness: 0.55
+        });
         const fruitGeometry = new THREE.SphereGeometry(0.32, 20, 16);
 
         const leftFruit = new THREE.Mesh(fruitGeometry, red);

@@ -36,12 +36,23 @@ class Ghost extends SceneObject {
     buildModel() {
         const coreColor = new THREE.Color(this.color).lerp(new THREE.Color(0xffffff), 0.35);
 
+        const ghostMaps = TextureAssets.loadPBRSet("fantasma_cotton_jersey", {
+            repeatX: 3,
+            repeatY: 2,
+            anisotropy: 4
+        });
+
         const bodyMaterial = new THREE.MeshStandardMaterial({
+            map: ghostMaps.map,
+            normalMap: ghostMaps.normalMap,
+            normalScale: new THREE.Vector2(1.5, 1.5),
+            roughnessMap: ghostMaps.roughnessMap,
             color: coreColor,
             emissive: this.color,
-            emissiveIntensity: 2.0,
-            roughness: 0.15,
-            metalness: 0.3
+            emissiveMap: ghostMaps.map,
+            emissiveIntensity: 0.75,
+            roughness: 0.7,
+            metalness: 0.18
         });
         const haloMaterial = new THREE.MeshBasicMaterial({
             color: this.color,
