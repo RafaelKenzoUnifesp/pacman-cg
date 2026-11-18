@@ -74,6 +74,13 @@ class Scene {
         this.player.addTo(this.scene);
         this.cherry.addTo(this.scene);
         this.ghosts.forEach(ghost => ghost.addTo(this.scene));
+        this.gameplay = new Gameplay(
+            this.maze,
+            this.player,
+            this.cherry,
+            document.getElementById("hud")
+        );
+        
 
         // Câmeras
         const mazeSize = Math.max(this.maze.cols, this.maze.rows) * TILE;
@@ -129,6 +136,8 @@ class Scene {
             dt,
             this.keys
         );
+        
+        this.gameplay.update();
 
         this.maze.update(dt);
         this.cherry.update(dt);
