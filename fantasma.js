@@ -10,14 +10,138 @@ class Ghost extends SceneObject {
         this.maze = maze;
         this.color = color;
         this.phase = Math.random() * Math.PI * 2;
+        this.state = "house";
+        this.mode = "scatter";
+        this.previousMode = "scatter";
+        this.direction = { col: -1, row: 0 };
+        this.inTunnel = false;
+        this.frightenedTime = 0;
+        this.frightDuration = 0;
+        this.debug = false;
+        this.modelMaterials = [];
+        this.decidedKey = null;
+        this.baseSpeed = 0;
+        this.speed = 0;
+        this.speedMultipliers = { ghost: 1, tunnel: 1, frightened: 1 };
+        this.decidedKey = null;
 
         const spawn = this.pickSpawn(spawnIndex);
+        this.homeSpawn = { x: spawn.x, z: spawn.z };
         this.x = spawn.x;
         this.z = spawn.z;
+        this.wasEaten = false;
+        this.respawnTimer = 0;
+        this.pendingFrightenDuration = 0;
 
         this.buildModel();
         this.buildLight();
         this.object3D.position.set(this.x, 0, this.z);
+    }
+
+    tilePosition(col, row) {
+        return transformacoes.tileParaMundo(col, row, this.maze.cols, this.maze.rows, this.maze.tile);
+    }
+
+    currentTile() {
+        return transformacoes.mundoParaTile(this.x, this.z, this.maze.cols, this.maze.rows, this.maze.tile);
+    }
+
+    setMode(mode) {
+        if (this.mode === mode) return;
+        this.mode = mode;
+        if (this.debug) console.debug(`[Ghost] ${this.name}: modo ${mode}`);
+        const frightened = mode === "frightened";
+        const visualColor = frightened ? 0x1644ff : this.color;
+        const emissiveColor = frightened ? 0x163cff : this.color;
+        this.modelMaterials.forEach(material => {
+            if (material.color) material.color.set(visualColor);
+            if (material.emissive) material.emissive.set(emissiveColor);
+        });
+        if (this.light) this.light.color.set(visualColor);
+        if (this.glowSprite) this.glowSprite.material.color.set(visualColor);
+        if (mode === "chase" || mode === "scatter") this.direction = { col: -this.direction.col, row: -this.direction.row };
+    }
+
+    frighten(duration) {
+        if (this.state === "house" || this.state === "eyes") return;
+
+        // Fantasmas que ainda estão saindo da casa ficam vulneráveis ao cruzar a porta.
+        if (this.state === "leaving" && !this.wasEaten) {
+            this.pendingFrightenDuration = duration;
+            return;
+        }
+
+        if (this.mode !== "frightened") this.previousMode = this.mode;
+        this.frightDuration = duration;
+        this.frightenedTime = duration;
+        this.direction = { col: -this.direction.col, row: -this.direction.row };
+        this.decidedKey = null;
+        if (duration > 0) this.setMode("frightened");
+    }
+
+    // Remove o fantasma do labirinto e inicia seu retorno à casa.
+    eat() {
+        if (this.state !== "active" || this.mode !== "frightened") {
+            return false;
+        }
+
+        this.wasEaten = true;
+        this.state = "respawning";
+        this.respawnTimer = 1.25;
+        this.x = this.homeSpawn.x;
+        this.z = this.homeSpawn.z;
+        this.object3D.position.set(this.x, 0, this.z);
+        this.object3D.visible = false;
+        this.decidedKey = null;
+        return true;
+    }
+
+    getTarget(playerTile) {
+        if (this.mode === "scatter") {
+            const corners = {
+                Blinky: { col: this.maze.cols - 2, row: 1 },
+                Pinky: { col: 1, row: 1 },
+                Inky: { col: this.maze.cols - 2, row: this.maze.rows - 2 },
+                Clyde: { col: 1, row: this.maze.rows - 2 }
+            };
+            return corners[this.name];
+        }
+        return playerTile;
+    }
+
+    chooseDirection(playerTile) {
+        const tile = this.currentTile();
+        const directions = [
+            { col: 0, row: -1 }, { col: 1, row: 0 },
+            { col: 0, row: 1 }, { col: -1, row: 0 }
+        ];
+        const target = this.getTarget(playerTile);
+        let options = directions.filter(direction => {
+            if (direction.col === -this.direction.col && direction.row === -this.direction.row) return false;
+            const col = tile.col + direction.col;
+            const row = tile.row + direction.row;
+            return this.maze.isOpenGhostTile(col, row);
+        });
+        if (!options.length) {
+            const reverse = { col: -this.direction.col, row: -this.direction.row };
+            if (this.maze.isOpenGhostTile(tile.col + reverse.col, tile.row + reverse.row)) options = [reverse];
+        }
+        if (!options.length) return;
+        if (this.mode === "frightened") {
+            this.direction = options[Math.floor(Math.random() * options.length)];
+            return;
+        }
+        options.sort((a, b) => {
+            const da = (tile.col + a.col - target.col) ** 2 + (tile.row + a.row - target.row) ** 2;
+            const db = (tile.col + b.col - target.col) ** 2 + (tile.row + b.row - target.row) ** 2;
+            return da - db;
+        });
+        this.direction = options[0];
+    }
+
+    updateTunnelState() {
+        const tile = this.currentTile();
+        this.inTunnel = this.maze.isTunnelTile(tile.col, tile.row);
     }
 
     // Usa quatro posições distintas da casa dos fantasmas.
@@ -70,6 +194,7 @@ class Ghost extends SceneObject {
             emissiveIntensity: 0.9,
             roughness: 0.1
         });
+        this.modelMaterials = [bodyMaterial, haloMaterial, ringMaterial];
 
         // Cúpula superior do corpo.
         const dome = new THREE.Mesh(
@@ -160,7 +285,7 @@ class Ghost extends SceneObject {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, size, size);
 
-        const glowSprite = new THREE.Sprite(
+        this.glowSprite = new THREE.Sprite(
             new THREE.SpriteMaterial({
                 map: new THREE.CanvasTexture(canvas),
                 color: this.color,
@@ -170,14 +295,108 @@ class Ghost extends SceneObject {
                 depthWrite: false
             })
         );
-        glowSprite.position.set(0, 0.9, 0);
-        glowSprite.scale.set(3.8, 3.8, 1);
-        this.object3D.add(glowSprite);
+        this.glowSprite.position.set(0, 0.9, 0);
+        this.glowSprite.scale.set(3.8, 3.8, 1);
+        this.object3D.add(this.glowSprite);
     }
 
     update(dt) {
+        // Durante o respawn o fantasma permanece invisível e parado na casa.
+        // Não precisa animar o modelo, recalcular a luz ou reaplicar sua posição.
+        if (this.state === "respawning") {
+            if (this.object3D.visible) this.object3D.visible = false;
+
+            if (this.mode === "frightened" && this.frightDuration > 0) {
+                this.frightenedTime = Math.max(0, this.frightenedTime - dt);
+                if (this.frightenedTime === 0) this.setMode(this.previousMode);
+            }
+
+            this.respawnTimer = Math.max(0, this.respawnTimer - dt);
+            if (this.respawnTimer === 0) {
+                this.state = "leaving";
+                this.object3D.visible = true;
+                this.direction = { col: -1, row: 0 };
+                this.decidedKey = null;
+            }
+
+            return;
+        }
+
+        // A animação e a iluminação voltam quando o fantasma está visível.
         this.phase += dt * 4;
         this.object3D.position.y = 0.08 + Math.sin(this.phase) * 0.08;
         this.light.intensity = 4.5 + Math.sin(this.phase * 1.5) * 0.6;
+
+        this.object3D.visible = !(this.mode === "frightened" && this.frightenedTime <= 2 && Math.floor(this.frightenedTime * 8) % 2 === 0);
+
+        if (this.state === "house") return;
+        if (this.state === "leaving") {
+            const door = this.maze.ghostDoor || this.maze.ghostSpawns[0] || { x: this.x, z: this.z };
+            const exitZ = door.z - this.maze.tile;
+            const step = this.baseSpeed * this.speedMultipliers.ghost * dt;
+            this.x = door.x;
+            // Sai pela abertura marcada no mapa, sem testar a colisão da porta.
+            this.z = Math.max(exitZ, this.z - step);
+            if (this.z <= exitZ) {
+                this.z = exitZ;
+                this.state = "active";
+                if (this.wasEaten) {
+                    // Mantém o modo atual caso a proteção ainda esteja ativa.
+                    this.wasEaten = false;
+                } else {
+                    this.setMode("scatter");
+                }
+                this.direction = { col: -1, row: 0 };
+                this.decidedKey = null;
+                if (this.pendingFrightenDuration > 0) {
+                    const duration = this.pendingFrightenDuration;
+                    this.pendingFrightenDuration = 0;
+                    this.frighten(duration);
+                }
+                if (this.isBlinky) this.elroyDisabled = false;
+            }
+            this.object3D.position.x = this.x;
+            this.object3D.position.z = this.z;
+            return;
+        }
+        if (this.state === "active" && ["chase", "scatter", "frightened"].includes(this.mode)) {
+            if (this.mode === "frightened" && this.frightDuration > 0) {
+                this.frightenedTime = Math.max(0, this.frightenedTime - dt);
+                if (this.frightenedTime === 0) this.setMode(this.previousMode);
+            }
+            this.updateTunnelState();
+            const multiplier = this.inTunnel ? this.speedMultipliers.tunnel :
+                this.mode === "frightened" ? this.speedMultipliers.frightened : this.speedMultipliers.ghost;
+            const delta = this.baseSpeed * multiplier * dt;
+            const tile = this.currentTile();
+            const center = this.tilePosition(tile.col, tile.row);
+            const key = `${tile.col},${tile.row}`;
+            const dist = Math.abs(center.x - this.x) + Math.abs(center.z - this.z);
+            if (dist <= delta && this.decidedKey !== key) {
+                const alongX = this.direction.col !== 0;
+                this.x = alongX ? center.x : this.x;
+                this.z = alongX ? this.z : center.z;
+                this.decidedKey = key;
+                this.chooseDirection(this.maze.playerTile || tile);
+            }
+            const nextX = this.x + this.direction.col * delta;
+            const nextZ = this.z + this.direction.row * delta;
+            const nextTile = transformacoes.mundoParaTile(nextX, nextZ, this.maze.cols, this.maze.rows, this.maze.tile);
+            if (this.maze.isTunnelTile(tile.col, tile.row) && this.maze.isTunnelTile(nextTile.col, nextTile.row)) {
+                const bounds = this.maze.tunnelWorldBounds();
+                this.x = nextX < bounds.left ? bounds.right : nextX > bounds.right ? bounds.left : nextX;
+                this.z = nextZ;
+            } else if (!this.maze.collides(nextX, nextZ, 0.8)) {
+                this.x = nextX;
+                this.z = nextZ;
+            } else {
+                this.decidedKey = null;
+            }
+            this.updateTunnelState();
+            this.object3D.position.x = this.x;
+            this.object3D.position.z = this.z;
+        }
+        this.object3D.position.x = this.x;
+        this.object3D.position.z = this.z;
     }
 }

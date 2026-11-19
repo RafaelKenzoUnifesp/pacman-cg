@@ -51,6 +51,29 @@
             padding: 10px 16px;
             border: 1px solid #1919a6;
             pointer-events: none;
+            z-index: 2;
+        }
+
+        #hud.game-over,
+        #hud.game-won {
+            left: 50%;
+            bottom: 50%;
+            min-width: 360px;
+            max-width: calc(100vw - 32px);
+            padding: 24px 30px;
+            transform: translate(-50%, 50%);
+            text-align: center;
+            line-height: 1.8;
+            font-size: 21px;
+            background: rgba(0, 0, 0, 0.92);
+        }
+
+        #hud.game-over {
+            border: 2px solid #ff3030;
+        }
+
+        #hud.game-won {
+            border: 2px solid #ffd200;
         }
     </style>
 </head>
@@ -67,6 +90,7 @@
     <script src="transformacoes.js"></script>
     <script src="maze.js"></script>
     <script src="sceneObject.js"></script>
+    <script src="ghostHouse.js"></script>
     <script src="cereja.js"></script>
     <script src="fantasma.js"></script>
     <script src="camera.js"></script>
