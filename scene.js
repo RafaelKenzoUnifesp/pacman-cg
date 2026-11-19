@@ -4,6 +4,7 @@
 
 const BASE_SPEED = 6;
 const POWER_DURATION_BY_LEVEL = [6, 5, 4, 3, 2, 5, 2, 2, 1, 5, 2, 1, 1, 3, 1, 1, 0, 1, 0];
+const MODE_PHASES_LEVEL_1 = [{ mode: "scatter", duration: 7 }, { mode: "chase", duration: 20 }];
 function levelSpeeds(level) {
     if (level === 1) return { player: 0.80, ghost: 0.75, tunnel: 0.40, frightened: 0.50, power: 0.90 };
     if (level <= 4) return { player: 0.90, ghost: 0.85, tunnel: 0.45, frightened: 0.55, power: 0.95 };
@@ -101,6 +102,8 @@ class Scene {
         });
         this.ghostHouse = new GhostHouse(this.level, this.debug);
         this.powerTimer = 0;
+        this.modePhaseIndex = 0;
+        this.modePhaseTime = MODE_PHASES_LEVEL_1[0].duration;
         this.ghosts.forEach(ghost => ghost.setMode("scatter"));
         this.ghosts[0].x = this.maze.ghostDoor.x;
         this.ghosts[0].z = this.maze.ghostDoor.z - this.maze.tile;
@@ -177,6 +180,17 @@ class Scene {
         );
         this.maze.playerTile = transformacoes.mundoParaTile(this.player.x, this.player.z, this.maze.cols, this.maze.rows, this.maze.tile);
         this.powerTimer = Math.max(0, this.powerTimer - dt);
+        if (this.level === 1) {
+            this.modePhaseTime -= dt;
+            if (this.modePhaseTime <= 0) {
+                this.modePhaseIndex = (this.modePhaseIndex + 1) % MODE_PHASES_LEVEL_1.length;
+                this.modePhaseTime = MODE_PHASES_LEVEL_1[this.modePhaseIndex].duration;
+                const nextMode = MODE_PHASES_LEVEL_1[this.modePhaseIndex].mode;
+                this.ghosts.forEach(ghost => {
+                    if (ghost.state === "active" && ghost.mode !== "frightened" && ghost.mode !== "eyes") ghost.setMode(nextMode);
+                });
+            }
+        }
         if (this.powerTimer === 0 && this.player.powerActive) {
             this.player.powerActive = false;
             this.player.speed = BASE_SPEED * this.speeds.player;

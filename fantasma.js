@@ -23,6 +23,7 @@ class Ghost extends SceneObject {
         this.baseSpeed = 0;
         this.speed = 0;
         this.speedMultipliers = { ghost: 1, tunnel: 1, frightened: 1 };
+        this.decidedKey = null;
 
         const spawn = this.pickSpawn(spawnIndex);
         this.x = spawn.x;
@@ -59,6 +60,7 @@ class Ghost extends SceneObject {
         this.frightDuration = duration;
         this.frightenedTime = duration;
         this.direction = { col: -this.direction.col, row: -this.direction.row };
+        this.decidedKey = null;
         if (duration > 0) this.setMode("frightened");
     }
 
