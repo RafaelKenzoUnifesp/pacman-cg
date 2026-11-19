@@ -26,8 +26,12 @@ class Ghost extends SceneObject {
         this.decidedKey = null;
 
         const spawn = this.pickSpawn(spawnIndex);
+        this.homeSpawn = { x: spawn.x, z: spawn.z };
         this.x = spawn.x;
         this.z = spawn.z;
+        this.wasEaten = false;
+        this.respawnTimer = 0;
+        this.pendingFrightenDuration = 0;
 
         this.buildModel();
         this.buildLight();
@@ -47,21 +51,49 @@ class Ghost extends SceneObject {
         this.mode = mode;
         if (this.debug) console.debug(`[Ghost] ${this.name}: modo ${mode}`);
         const frightened = mode === "frightened";
+        const visualColor = frightened ? 0x1644ff : this.color;
+        const emissiveColor = frightened ? 0x163cff : this.color;
         this.modelMaterials.forEach(material => {
-            if (material.color) material.color.set(frightened ? 0x1644ff : this.color);
-            if (material.emissive) material.emissive.set(frightened ? 0x163cff : this.color);
+            if (material.color) material.color.set(visualColor);
+            if (material.emissive) material.emissive.set(emissiveColor);
         });
+        if (this.light) this.light.color.set(visualColor);
+        if (this.glowSprite) this.glowSprite.material.color.set(visualColor);
         if (mode === "chase" || mode === "scatter") this.direction = { col: -this.direction.col, row: -this.direction.row };
     }
 
     frighten(duration) {
-        if (this.state === "house" || this.state === "leaving" || this.state === "eyes") return;
+        if (this.state === "house" || this.state === "eyes") return;
+
+        // Fantasmas que ainda estão saindo da casa ficam vulneráveis ao cruzar a porta.
+        if (this.state === "leaving" && !this.wasEaten) {
+            this.pendingFrightenDuration = duration;
+            return;
+        }
+
         if (this.mode !== "frightened") this.previousMode = this.mode;
         this.frightDuration = duration;
         this.frightenedTime = duration;
         this.direction = { col: -this.direction.col, row: -this.direction.row };
         this.decidedKey = null;
         if (duration > 0) this.setMode("frightened");
+    }
+
+    // Remove o fantasma do labirinto e inicia seu retorno à casa.
+    eat() {
+        if (this.state !== "active" || this.mode !== "frightened") {
+            return false;
+        }
+
+        this.wasEaten = true;
+        this.state = "respawning";
+        this.respawnTimer = 1.25;
+        this.x = this.homeSpawn.x;
+        this.z = this.homeSpawn.z;
+        this.object3D.position.set(this.x, 0, this.z);
+        this.object3D.visible = false;
+        this.decidedKey = null;
+        return true;
     }
 
     getTarget(playerTile) {
@@ -253,7 +285,7 @@ class Ghost extends SceneObject {
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, size, size);
 
-        const glowSprite = new THREE.Sprite(
+        this.glowSprite = new THREE.Sprite(
             new THREE.SpriteMaterial({
                 map: new THREE.CanvasTexture(canvas),
                 color: this.color,
@@ -263,15 +295,38 @@ class Ghost extends SceneObject {
                 depthWrite: false
             })
         );
-        glowSprite.position.set(0, 0.9, 0);
-        glowSprite.scale.set(3.8, 3.8, 1);
-        this.object3D.add(glowSprite);
+        this.glowSprite.position.set(0, 0.9, 0);
+        this.glowSprite.scale.set(3.8, 3.8, 1);
+        this.object3D.add(this.glowSprite);
     }
 
     update(dt) {
+        // Durante o respawn o fantasma permanece invisível e parado na casa.
+        // Não precisa animar o modelo, recalcular a luz ou reaplicar sua posição.
+        if (this.state === "respawning") {
+            if (this.object3D.visible) this.object3D.visible = false;
+
+            if (this.mode === "frightened" && this.frightDuration > 0) {
+                this.frightenedTime = Math.max(0, this.frightenedTime - dt);
+                if (this.frightenedTime === 0) this.setMode(this.previousMode);
+            }
+
+            this.respawnTimer = Math.max(0, this.respawnTimer - dt);
+            if (this.respawnTimer === 0) {
+                this.state = "leaving";
+                this.object3D.visible = true;
+                this.direction = { col: -1, row: 0 };
+                this.decidedKey = null;
+            }
+
+            return;
+        }
+
+        // A animação e a iluminação voltam quando o fantasma está visível.
         this.phase += dt * 4;
         this.object3D.position.y = 0.08 + Math.sin(this.phase) * 0.08;
         this.light.intensity = 4.5 + Math.sin(this.phase * 1.5) * 0.6;
+
         this.object3D.visible = !(this.mode === "frightened" && this.frightenedTime <= 2 && Math.floor(this.frightenedTime * 8) % 2 === 0);
 
         if (this.state === "house") return;
@@ -285,9 +340,19 @@ class Ghost extends SceneObject {
             if (this.z <= exitZ) {
                 this.z = exitZ;
                 this.state = "active";
-                this.setMode("scatter");
+                if (this.wasEaten) {
+                    // Mantém o modo atual caso a proteção ainda esteja ativa.
+                    this.wasEaten = false;
+                } else {
+                    this.setMode("scatter");
+                }
                 this.direction = { col: -1, row: 0 };
                 this.decidedKey = null;
+                if (this.pendingFrightenDuration > 0) {
+                    const duration = this.pendingFrightenDuration;
+                    this.pendingFrightenDuration = 0;
+                    this.frighten(duration);
+                }
                 if (this.isBlinky) this.elroyDisabled = false;
             }
             this.object3D.position.x = this.x;

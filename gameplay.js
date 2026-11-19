@@ -17,6 +17,9 @@ class Gameplay {
 
         this.cherryCollected = false;
         this.finished = false;
+        this.gameOver = false;
+        this.victory = false;
+        this.ghostsEatenThisPower = 0;
 
         this.dotPoints = 10;
         this.powerPoints = 50;
@@ -66,6 +69,9 @@ class Gameplay {
 
         this.collectedDots++;
         if (this.ghostHouse) this.ghostHouse.onDotEaten();
+
+        // Cada nova bola especial reinicia a sequência de pontos dos fantasmas.
+        this.ghostsEatenThisPower = 0;
         if (this.onPowerPellet) this.onPowerPellet();
 
         this.addScore(this.powerPoints);
@@ -136,11 +142,24 @@ class Gameplay {
             return;
         }
 
-        const remaining =
-            this.maze.dots.length + this.maze.pellets.length;
+        if (this.gameOver) {
+            this.hud.classList.add("game-over");
+            this.hud.classList.remove("game-won");
+            this.hud.innerHTML =
+                `GAME OVER<br>PONTUAÇÃO FINAL: ${this.score}<br>PRESSIONE F5 PARA RECOMEÇAR`;
+            return;
+        }
 
-        this.hud.innerHTML =
-            `PONTUAÇÃO: ${this.score}<br>`;
+        if (this.victory) {
+            this.hud.classList.add("game-won");
+            this.hud.classList.remove("game-over");
+            this.hud.innerHTML =
+                `FASE CONCLUÍDA!<br>PONTUAÇÃO FINAL: ${this.score}`;
+            return;
+        }
+
+        this.hud.classList.remove("game-over", "game-won");
+        this.hud.innerHTML = `PONTUAÇÃO: ${this.score}<br>`;
     }
 
     // Verifica se todas as bolinhas foram coletadas
@@ -150,13 +169,70 @@ class Gameplay {
             this.maze.dots.length + this.maze.pellets.length;
 
         if (remaining === 0 && !this.finished) {
-
+            this.victory = true;
             this.finished = true;
-
-            this.hud.innerHTML =
-                `FASE CONCLUÍDA!<br>
-                 PONTUAÇÃO FINAL: ${this.score}`;
+            this.updateHUD();
         }
+    }
+
+    // Verifica o contato entre Pac-Man e os fantasmas após o movimento deles.
+    checkGhostCollisions() {
+
+        if (this.finished) {
+            return;
+        }
+
+        const playerRadius = this.player.radius || 0.8;
+        const ghostRadius = 0.9;
+        const collisionDistance = playerRadius + ghostRadius;
+        const collisionDistanceSquared = collisionDistance * collisionDistance;
+
+        for (const ghost of this.ghosts) {
+
+            // Fantasmas na casa ou retornando após serem comidos não oferecem perigo.
+            if (ghost.state !== "active") {
+                continue;
+            }
+
+            const dx = this.player.x - ghost.x;
+            const dz = this.player.z - ghost.z;
+            const distanceSquared = dx * dx + dz * dz;
+
+            if (distanceSquared > collisionDistanceSquared) {
+                continue;
+            }
+
+            if (ghost.mode === "frightened" && ghost.frightenedTime > 0) {
+                this.eatGhost(ghost);
+            } else {
+                this.triggerGameOver();
+                return;
+            }
+        }
+    }
+
+    // Come um fantasma vulnerável e aplica a pontuação crescente do Pac-Man clássico.
+    eatGhost(ghost) {
+
+        if (!ghost.eat()) {
+            return;
+        }
+
+        const points = Math.min(200 * (2 ** this.ghostsEatenThisPower), 1600);
+        this.ghostsEatenThisPower++;
+        this.addScore(points);
+    }
+
+    // Encerra a partida sem reiniciar automaticamente; o jogador usa F5.
+    triggerGameOver() {
+
+        if (this.finished) {
+            return;
+        }
+
+        this.gameOver = true;
+        this.finished = true;
+        this.updateHUD();
     }
 
     // Ciclo principal da jogabilidade
@@ -171,8 +247,6 @@ class Gameplay {
         this.checkCherry();
 
         this.checkVictory();
-
-        this.updateHUD();
     }
 
 }

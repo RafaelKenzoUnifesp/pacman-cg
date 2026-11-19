@@ -164,6 +164,11 @@ class Scene {
 
     update() {
 
+        // Mantém a cena congelada após vitória ou game over até o F5.
+        if (this.gameplay && this.gameplay.finished) {
+            return;
+        }
+
         const now = performance.now();
 
         const dt =
@@ -196,6 +201,7 @@ class Scene {
             this.player.speed = BASE_SPEED * this.speeds.player;
             this.ghosts.forEach(ghost => {
                 if (ghost.mode === "frightened") ghost.setMode(ghost.previousMode);
+                ghost.pendingFrightenDuration = 0;
             });
         }
         this.player.powerSpeedMultiplier = this.speeds.power;
@@ -211,10 +217,16 @@ class Scene {
         }
         
         this.gameplay.update();
+        if (this.gameplay.finished) {
+            return;
+        }
 
         this.maze.update(dt);
         this.cherry.update(dt);
         this.ghosts.forEach(ghost => {
+            if (ghost.pendingFrightenDuration > 0) {
+                ghost.pendingFrightenDuration = this.powerTimer;
+            }
             ghost.speed = BASE_SPEED * ghost.speedMultipliers.ghost;
             const remaining = this.maze.dots.length + this.maze.pellets.length;
             if (ghost.name === "Blinky" && !this.ghostHouse.queue.length && !ghost.elroyDisabled && this.level === 1 && ["chase", "scatter"].includes(ghost.mode)) {
@@ -255,7 +267,10 @@ class Scene {
         this.flashlightTarget.position
          .copy(this.povCamera.camera.position)
           .add(direction.multiplyScalar(10));
-         }
+
+        // A colisão é avaliada depois que os fantasmas também se movimentaram.
+        this.gameplay.checkGhostCollisions();
+    }
 
     draw() {
 
