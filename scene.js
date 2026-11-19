@@ -2,6 +2,15 @@
 // CLASS - SCENE
 // --------------------------------------------------
 
+const BASE_SPEED = 6;
+const POWER_DURATION_BY_LEVEL = [6, 5, 4, 3, 2, 5, 2, 2, 1, 5, 2, 1, 1, 3, 1, 1, 0, 1, 0];
+function levelSpeeds(level) {
+    if (level === 1) return { player: 0.80, ghost: 0.75, tunnel: 0.40, frightened: 0.50, power: 0.90 };
+    if (level <= 4) return { player: 0.90, ghost: 0.85, tunnel: 0.45, frightened: 0.55, power: 0.95 };
+    if (level <= 20) return { player: 1.00, ghost: 0.95, tunnel: 0.50, frightened: 0.60, power: 1.00 };
+    return { player: 0.90, ghost: 0.95, tunnel: 0.50, frightened: null, power: 0.90 };
+}
+
 class Scene {
 
     constructor(canvas) {
@@ -10,7 +19,7 @@ class Scene {
         const WALL_HEIGHT = 3;
         const EYE_HEIGHT = 1.4;
         const PLAYER_RADIUS = 0.8;
-        const MOVE_SPEED = 6;
+        const MOVE_SPEED = BASE_SPEED;
         const TURN_SPEED = 2.4;
 
         this.renderer = new Renderer(canvas);
@@ -50,7 +59,11 @@ class Scene {
 
         // Cenário e jogador
         this.maze = new Maze(MAZE_MAP, TILE, WALL_HEIGHT);
-        this.player = new Player(this.maze, PLAYER_RADIUS, MOVE_SPEED, TURN_SPEED);
+        this.level = 1;
+        this.speeds = levelSpeeds(this.level);
+        this.player = new Player(this.maze, PLAYER_RADIUS, MOVE_SPEED * this.speeds.player, TURN_SPEED);
+        this.player.baseSpeed = MOVE_SPEED;
+        this.player.powerSpeedMultiplier = this.speeds.power;
 
         // Mantem a cereja perto do player e evita nascer sobre uma bolinha
         //spawn da cereja vai ser alterado posteriormente 
@@ -69,6 +82,29 @@ class Scene {
         this.ghosts = ghostColors.map((color, index) =>
             new Ghost(this.maze, index, color)
         );
+        this.debug = new URLSearchParams(window.location.search).get("debug") === "1";
+        this.ghosts.forEach((ghost, index) => {
+            ghost.name = ["Blinky", "Pinky", "Inky", "Clyde"][index];
+            ghost.speed = BASE_SPEED * this.speeds.ghost;
+            ghost.direction = { col: -1, row: 0 };
+            ghost.isBlinky = index === 0;
+            ghost.state = index === 0 ? "active" : "house";
+            ghost.baseSpeed = BASE_SPEED;
+            ghost.speed = BASE_SPEED * this.speeds.ghost;
+            ghost.speedMultipliers = {
+                ghost: this.speeds.ghost,
+                tunnel: this.speeds.tunnel,
+                frightened: this.speeds.frightened || this.speeds.ghost
+            };
+            ghost.debug = this.debug;
+            ghost.scatterCorner = index;
+        });
+        this.ghostHouse = new GhostHouse(this.level, this.debug);
+        this.powerTimer = 0;
+        this.ghosts.forEach(ghost => ghost.setMode("scatter"));
+        this.ghosts[0].x = this.maze.ghostDoor.x;
+        this.ghosts[0].z = this.maze.ghostDoor.z - this.maze.tile;
+        this.ghosts[0].object3D.position.set(this.ghosts[0].x, 0, this.ghosts[0].z);
 
         this.maze.addTo(this.scene);
         this.player.addTo(this.scene);
@@ -80,6 +116,9 @@ class Scene {
             this.cherry,
             document.getElementById("hud")
         );
+        this.gameplay.ghostHouse = this.ghostHouse;
+        this.gameplay.ghosts = this.ghosts;
+        this.gameplay.onPowerPellet = () => this.activatePowerPellet();
         
 
         // Câmeras
@@ -136,12 +175,44 @@ class Scene {
             dt,
             this.keys
         );
+        this.maze.playerTile = transformacoes.mundoParaTile(this.player.x, this.player.z, this.maze.cols, this.maze.rows, this.maze.tile);
+        this.powerTimer = Math.max(0, this.powerTimer - dt);
+        if (this.powerTimer === 0 && this.player.powerActive) {
+            this.player.powerActive = false;
+            this.player.speed = BASE_SPEED * this.speeds.player;
+            this.ghosts.forEach(ghost => {
+                if (ghost.mode === "frightened") ghost.setMode(ghost.previousMode);
+            });
+        }
+        this.player.powerSpeedMultiplier = this.speeds.power;
+
+        const releasedGhost = this.ghostHouse.update(dt);
+        if (releasedGhost) {
+            const ghost = this.ghosts.find(item => item.name === releasedGhost);
+            if (ghost && ghost.state === "house") {
+                ghost.state = "leaving";
+                if (this.debug) console.debug(`[GhostHouse] ${releasedGhost} começou a sair`);
+            }
+            if (!this.ghostHouse.queue.length) this.ghosts.find(item => item.name === "Blinky").elroyDisabled = false;
+        }
         
         this.gameplay.update();
 
         this.maze.update(dt);
         this.cherry.update(dt);
-        this.ghosts.forEach(ghost => ghost.update(dt));
+        this.ghosts.forEach(ghost => {
+            ghost.speed = BASE_SPEED * ghost.speedMultipliers.ghost;
+            const remaining = this.maze.dots.length + this.maze.pellets.length;
+            if (ghost.name === "Blinky" && !this.ghostHouse.queue.length && !ghost.elroyDisabled && this.level === 1 && ["chase", "scatter"].includes(ghost.mode)) {
+                if (remaining <= 10) ghost.speed = Math.max(ghost.speed, BASE_SPEED * 0.85);
+                else if (remaining <= 20) ghost.speed = Math.max(ghost.speed, BASE_SPEED * 0.80);
+            }
+            if (this.debug && ghost.lastLoggedSpeed !== ghost.speed) {
+                ghost.lastLoggedSpeed = ghost.speed;
+                console.debug(`[Ghost] ${ghost.name}: velocidade ${ghost.speed.toFixed(2)}`);
+            }
+            ghost.update(dt);
+        });
 
         this.povCamera.follow(
             this.player
@@ -179,6 +250,68 @@ class Scene {
             this.povCamera.camera,
             this.topCamera.camera
         );
+    }
+
+    activatePowerPellet() {
+        const duration = POWER_DURATION_BY_LEVEL[this.level - 1] ?? 0;
+        this.powerTimer = duration;
+        this.player.powerActive = duration > 0;
+        this.player.speed = BASE_SPEED * this.speeds.player;
+        this.ghosts.forEach(ghost => ghost.frighten(duration));
+    }
+
+    // Redireciona o gancho de perda de vida para a fila global da casa.
+    onLifeLost() {
+        this.ghostHouse.onLifeLost();
+    }
+
+    // Repõe fantasmas na casa após uma morte; o subsistema de vidas chama este gancho.
+    resetGhostsAfterDeath() {
+        this.ghostHouse.resetQueue();
+        this.ghosts.forEach((ghost, index) => {
+            const spawn = ghost.pickSpawn(index);
+            ghost.x = this.maze.ghostDoor ? this.maze.ghostDoor.x : spawn.x;
+            ghost.z = spawn.z;
+            ghost.object3D.position.set(ghost.x, 0, spawn.z);
+            ghost.state = index === 0 ? "active" : "house";
+            ghost.setMode("scatter");
+            ghost.direction = { col: -1, row: 0 };
+            ghost.elroyDisabled = true;
+            ghost.frightenedTime = 0;
+            ghost.frightDuration = 0;
+            ghost.object3D.visible = true;
+        });
+        this.ghosts.find(ghost => ghost.name === "Blinky").elroyDisabled = true;
+        this.powerTimer = 0;
+        this.player.powerActive = false;
+        this.player.powerSpeedMultiplier = this.speeds.power;
+        this.player.speed = BASE_SPEED * this.speeds.player;
+    }
+
+    // Alias para consumidores que já referenciam o nome anterior do gancho.
+    resetGhostsAfterLifeLost() {
+        this.resetGhostsAfterDeath();
+    }
+
+    // Altera o estado externo sem incluir esse fantasma nas regras de movimento ou velocidade.
+    setGhostState(name, state) {
+        const ghost = this.ghosts.find(item => item.name === name);
+        if (ghost) {
+            ghost.state = state;
+            if (state === "eyes") ghost.frightenedTime = 0;
+        }
+    }
+
+    // Retorna a coordenada tile atual do fantasma pelo nome.
+    getGhostTile(name) {
+        const ghost = this.ghosts.find(item => item.name === name);
+        return ghost ? ghost.currentTile() : null;
+    }
+
+    // Retorna o modo atual do fantasma pelo nome.
+    getGhostMode(name) {
+        const ghost = this.ghosts.find(item => item.name === name);
+        return ghost ? ghost.mode : null;
     }
 
     execute() {

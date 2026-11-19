@@ -39,6 +39,13 @@ class Maze extends SceneObject {
 
         this.playerSpawn = { x: 0, z: 0 };
         this.ghostSpawns = [];
+        this.ghostDoor = null;
+        this.tunnelTiles = [];
+        this.tunnelRow = Math.floor(this.rows / 2);
+        this.tunnelTiles = [
+            { col: 0, row: this.tunnelRow },
+            { col: this.cols - 1, row: this.tunnelRow }
+        ];
         this.dots = [];
         this.pellets = [];
 
@@ -221,6 +228,7 @@ class Maze extends SceneObject {
                         this.tile
                     );
 
+
                 if (tileChar === "#") {
 
                     const wall =
@@ -250,6 +258,7 @@ class Maze extends SceneObject {
                     this.object3D.add(edges);
 
                 } else if (tileChar === "-") {
+                    this.ghostDoor = position;
 
                     const door =
                         new THREE.Mesh(
@@ -350,6 +359,22 @@ class Maze extends SceneObject {
             this.map[row][col];
 
         return tileChar === "#" || tileChar === "-";
+    }
+
+    isOpenGhostTile(col, row) {
+        if (row === Math.floor(this.rows / 2) && (col < 0 || col >= this.cols)) return true;
+        return !this.isWallTile(col, row);
+    }
+
+    isTunnelTile(col, row) {
+        return this.tunnelTiles.some(tile => tile.col === col && tile.row === row);
+    }
+
+    tunnelWorldBounds() {
+        return {
+            left: (-this.cols / 2 + 0.5) * this.tile,
+            right: (this.cols / 2 - 0.5) * this.tile
+        };
     }
 
     // Verifica se uma posição colide com alguma bolinha do mapa
@@ -459,6 +484,9 @@ class Player extends SceneObject {
         this.maze = maze;
         this.radius = radius;
         this.speed = speed;
+        this.baseSpeed = speed;
+        this.powerActive = false;
+        this.powerSpeedMultiplier = 1;
         this.turnSpeed = turnSpeed;
 
         this.x = maze.playerSpawn.x;
@@ -593,18 +621,27 @@ class Player extends SceneObject {
             moveZ -= frente.z;
         }
 
+        const effectiveSpeed = this.powerActive ? this.baseSpeed * this.powerSpeedMultiplier : this.speed;
         const delta =
             transformacoes.deslocamento(
                 moveX,
                 moveZ,
-                this.speed,
+                effectiveSpeed,
                 dt
             );
 
         // Colisão separada por eixo para permitir deslizar nas paredes
-        if (
+        const currentTileForWrap = transformacoes.mundoParaTile(this.x, this.z, this.maze.cols, this.maze.rows, this.maze.tile);
+        const nextX = this.x + delta.x;
+        const nextTileForWrap = transformacoes.mundoParaTile(nextX, this.z, this.maze.cols, this.maze.rows, this.maze.tile);
+        const tunnelWrap = this.maze.isTunnelTile(currentTileForWrap.col, currentTileForWrap.row) &&
+            currentTileForWrap.row === nextTileForWrap.row && (nextTileForWrap.col < 0 || nextTileForWrap.col >= this.maze.cols);
+        if (tunnelWrap) {
+            const bounds = this.maze.tunnelWorldBounds();
+            this.x = delta.x < 0 ? bounds.right : bounds.left;
+        } else if (
             !this.maze.collides(
-                this.x + delta.x,
+                nextX,
                 this.z,
                 this.radius
             )
@@ -612,7 +649,7 @@ class Player extends SceneObject {
             this.x += delta.x;
         }
 
-        if (
+        if (!tunnelWrap &&
             !this.maze.collides(
                 this.x,
                 this.z + delta.z,

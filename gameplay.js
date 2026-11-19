@@ -7,6 +7,9 @@ class Gameplay {
         this.player = player;
         this.cherry = cherry;
         this.hud = hud;
+        this.ghostHouse = null;
+        this.ghosts = [];
+        this.onPowerPellet = null;
 
         this.score = 0;
         this.totalDots = maze.dots.length + maze.pellets.length;
@@ -48,6 +51,7 @@ class Gameplay {
             this.maze.dots.filter(item => item !== dot);
 
         this.collectedDots++;
+        if (this.ghostHouse) this.ghostHouse.onDotEaten();
 
         this.addScore(this.dotPoints);
     }
@@ -61,6 +65,8 @@ class Gameplay {
             this.maze.pellets.filter(item => item !== pellet);
 
         this.collectedDots++;
+        if (this.ghostHouse) this.ghostHouse.onDotEaten();
+        if (this.onPowerPellet) this.onPowerPellet();
 
         this.addScore(this.powerPoints);
     }
@@ -168,4 +174,5 @@ class Gameplay {
 
         this.updateHUD();
     }
+
 }
